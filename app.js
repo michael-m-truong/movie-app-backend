@@ -34,7 +34,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use('/auth', authRouter)
 
 app.get("/", (request, response) => {
-  response.json({ message: "Hello World! API works! TESTING UPDATE" });
+  response.json({ message: "Hello World! Movie API works!" });
 });
 
 module.exports = app;
