@@ -8,6 +8,10 @@ jobs:
     docker:
       - image: "cimg/base:stable"
     steps:
+      - checkout
+      - node/install:
+          node-version: "12.22"
+      - node/install-packages
       - run:
         command: npm run test
 
