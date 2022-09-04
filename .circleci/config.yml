@@ -4,9 +4,9 @@ orbs:
   node: circleci/node@5.0.2
 
 jobs:
-  build-and-test:
+  unit-test:
     docker:
-      - image: "cimg/base:stable"
+      - image: circleci/node:18.8.0
     steps:
       - checkout
       - node/install:
@@ -14,9 +14,13 @@ jobs:
       - node/install-packages
       - run:
           command: npm run test
+    deploy-to-heroku:
+      - heroku/deploy-via-git
 
 workflows:
   heroku_deploy:
     jobs:
-      - build-and-test
-      - heroku/deploy-via-git
+      - unit-test
+      - deploy-to-heroku:
+        requires:
+          - unit-test
