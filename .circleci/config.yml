@@ -14,13 +14,16 @@ jobs:
       - node/install-packages
       - run:
           command: npm run test
-    deploy-to-heroku:
-      - heroku/deploy-via-git
+    #deploy-to-heroku:
+    #    - heroku/deploy-via-git
 
 workflows:
   heroku_deploy:
     jobs:
       - unit-test
-      - deploy-to-heroku:
-        requires:
-          - unit-test
+ #     - deploy-to-heroku:
+  #      requires:
+  #        - unit-test
+  #      filters:
+  #        branches:
+  #          only: master
