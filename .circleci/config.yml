@@ -1,6 +1,16 @@
 version: 2.1
 orbs:
   heroku: circleci/heroku@1.2.6
+  node: circleci/node@5.0.2
+
+jobs:
+  test:
+    docker:
+      - image: "cimg/base:stable"
+    steps:
+      - run:
+        command: npm run test
+
 workflows:
   heroku_deploy:
     jobs:
