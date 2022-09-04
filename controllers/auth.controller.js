@@ -21,7 +21,7 @@ exports.login = async (request, response) => {
         //console.log("ee")
         switch (e.message) {
             case "Password does not match":
-                return response.status(401).json(e)
+                return response.status(402).json(e)
 
             case "Username not found":
                 return response.status(404).json(e)
