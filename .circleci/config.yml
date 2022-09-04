@@ -1,7 +1,29 @@
 version: 2.1
 orbs:
   heroku: circleci/heroku@1.2.6
+  node: circleci/node@5.0.2
+
+jobs:
+  unit-test:
+    docker:
+      - image: circleci/node:18.8.0
+    steps:
+      - checkout
+      - node/install:
+          node-version: "12.22"
+      - node/install-packages
+      - run:
+          command: npm run test
+    #deploy-to-heroku:
+    #    - heroku/deploy-via-git
+
 workflows:
   heroku_deploy:
     jobs:
-      - heroku/deploy-via-git
+      - unit-test
+ #     - deploy-to-heroku:
+  #      requires:
+  #        - unit-test
+  #      filters:
+  #        branches:
+  #          only: master
