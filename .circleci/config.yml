@@ -4,7 +4,7 @@ orbs:
   node: circleci/node@5.0.2
 
 jobs:
-  test:
+  build-and-test:
     docker:
       - image: "cimg/base:stable"
     steps:
@@ -13,10 +13,10 @@ jobs:
           node-version: "12.22"
       - node/install-packages
       - run:
-        command: npm run test
+          command: npm run test
 
 workflows:
   heroku_deploy:
     jobs:
-      - test
+      - build-and-test
       - heroku/deploy-via-git
