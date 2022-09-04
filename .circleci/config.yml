@@ -5,12 +5,11 @@ orbs:
 
 jobs:
   unit-test:
-    docker:
-      - image: circleci/node:18.8.0
+    executor:
+      name: node/default
+      tag: '13.14'
     steps:
       - checkout
-      - node/install:
-          node-version: "12.22"
       - node/install-packages
       - run:
           command: npm run test
