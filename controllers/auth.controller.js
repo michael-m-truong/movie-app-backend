@@ -3,11 +3,11 @@ const auth = require('../services/auth.service')
 exports.register = async (request, response) => {
     try {
         const result = await auth.register(request.body)
-        return response.status(201).send(result)
+        return response.status(201).json(result)
     }
     catch (e) {
         //console.log(e)
-        return response.status(500).send(e)
+        return response.status(500).json(e)
     }
 } 
 

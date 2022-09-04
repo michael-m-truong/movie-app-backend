@@ -4,8 +4,11 @@ const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken')
 const authRouter = require('./routes/auth.routes')
+const freeRouter = require('./routes/free-endpoint.routes')
+const moviesRouter = require('./routes/movies.routes')
 const dbConnect = require("./db/dbConnect")
 const Auth = require('./models/auth.model');
+//const Authorization = require('./middlewares/authorization.middleware')
 
 dbConnect()
 
@@ -31,6 +34,8 @@ app.use(bodyParser.urlencoded({ extended: true }));
   next();
 });*/
 
+app.use('/movies', moviesRouter)
+app.use('/free-endpoint', freeRouter)
 app.use('/auth', authRouter)
 
 app.get("/", (request, response) => {
