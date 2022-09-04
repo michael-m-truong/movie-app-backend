@@ -60,7 +60,7 @@ describe('auth test', () => {
             .post("/auth/login/")
             .set('Accept', 'application/json')
             .send({username: "Test123", password: "abc123"})
-            .expect(400)
+            .expect(401)
             .expect("Content-Type", /json/)
     }) 
 })
