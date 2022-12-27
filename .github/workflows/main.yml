@@ -3,8 +3,8 @@ on:
     branches-ignore:
     - main
 jobs:
-  CI/CD Pipeline:
-    name: pipeline
+  pipeline:
+    name: CI/CD pipeline
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
