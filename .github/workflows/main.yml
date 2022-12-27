@@ -15,8 +15,8 @@ jobs:
           node-version: '12.x'
       - name: Clean install packages
         run: npm ci
-      - name: Build
-        run: npm run build
+      # - name: Build
+      #   run: npm run build
       - name: Unit-test
         run: npm run test
       - name: Deploy to render
