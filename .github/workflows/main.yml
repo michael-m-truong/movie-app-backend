@@ -12,12 +12,13 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '12.x'
-      - name: build
+      - name: Clean install packages
         run: npm ci
+      - name: Build
         run: npm run build
-      - name: unit-test
+      - name: Unit-test
         needs: [build]
         run: npm run test
-      - name: deploy
+      - name: Deploy to render
         needs: [build, unit-test]
         run: npm run prod
