@@ -18,6 +18,7 @@ jobs:
       # - name: Build
       #   run: npm run build
       - name: Unit-test
+        uses: stefanoeb/jest-action@1.0.3
         run: npm run test
       - name: Deploy to render
         run: npm run prod
