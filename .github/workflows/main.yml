@@ -1,1 +1,15 @@
-
+name: CI/CD pipeline
+on:
+  push:
+    branches-ignore:
+    - main
+jobs:
+  build:
+    run: npm ci
+    run: npm run build
+  unit-test:
+    needs: [build]
+    run: npm run test
+  deploy:
+    needs: [build, unit-test]
+    run: npm run prod
