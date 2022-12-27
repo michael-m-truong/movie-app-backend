@@ -6,7 +6,7 @@
   "scripts": {
     "serve": "nodemon index.js",
     "test": "jest --testEnvironment=node --runInBand ./tests",
-    "build": "webpack",
+    "build": "webpack --config webpack.config.js",
     "prod": "node dist/final.js"
   },
   "author": "",
