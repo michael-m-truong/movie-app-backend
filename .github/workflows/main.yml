@@ -17,8 +17,6 @@ jobs:
       - name: Build
         run: npm run build
       - name: Unit-test
-        needs: [build]
         run: npm run test
       - name: Deploy to render
-        needs: [build, unit-test]
         run: npm run prod
