@@ -20,6 +20,7 @@ jobs:
       - name: Unit-test
         env: 
            DB_URL: ${{ secrets.DB_URL }}
+           SECRET_KEY: secretkey
         run: npm run test
       - name: Deploy to render
         run: npm run prod
