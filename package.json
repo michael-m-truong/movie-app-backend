@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "serve": "nodemon index.js",
-    "test": "jest --testEnvironment=node --runInBand --forceExit --detectOpenHandles ./tests",
+    "test": "jest --testEnvironment=node --runInBand ./tests",
     "build": "webpack --config webpack.config.js",
     "prod": "node dist/final.js"
   },
