@@ -15,7 +15,7 @@ jobs:
           node-version: '19.x'
       - name: Clean install packages
         run: npm ci
-       - name: Build
+      - name: Build
         run: npm run build
       - name: Unit-test
         env: 
