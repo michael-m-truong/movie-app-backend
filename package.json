@@ -7,7 +7,8 @@
     "serve": "nodemon index.js",
     "test": "jest --testEnvironment=node --runInBand ./tests",
     "build": "webpack --config webpack.config.js",
-    "prod": "node dist/final.js"
+    "prod": "node dist/final.js",
+    "deploy": "npm run build && npm run prod"
   },
   "author": "",
   "license": "ISC",
