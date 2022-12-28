@@ -18,8 +18,9 @@ jobs:
       # - name: Build
       #   run: npm run build
       - name: Unit-test
-        env: 
-          DB_URL: ${{ secrets.DB_URL }}
-        run: npm run test
+        uses: stefanoeb/jest-action@1.0.3
+        with:
+          jestArgs: /tests
+      #  run: npm run test
       - name: Deploy to render
         run: npm run prod
