@@ -18,8 +18,8 @@ jobs:
       # - name: Build
       #   run: npm run build
       - name: Unit-test
-        env: 
-          DB_URL: ${{ secrets.DB_URL }}
+        # env: 
+        #   DB_URL: ${{ secrets.DB_URL }}
         run: npm run test
       - name: Deploy to render
         run: npm run prod
