@@ -17,11 +17,12 @@ exports.login = async (request, response) => {
         const expirationDate = new Date();
         expirationDate.setHours(expirationDate.getHours() + 24);
         return response.status(200).cookie('TOKEN', result.token, {
-            sameSite: 'strict',
+            //sameSite: 'strict',
+            sameSite: 'none',
+            secure: true,     // for prod
             path: '/',
             expires: expirationDate,
             httpOnly: true,
-            secure: true
         }).send(result)
         // response.status(202).cookie('idekkkkk', 'chaoddd', {
         //     sameSite: 'strict',
