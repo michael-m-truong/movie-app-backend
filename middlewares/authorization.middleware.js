@@ -1,8 +1,12 @@
 const jwt = require('jsonwebtoken')
+const cookieParser = require('cookie-parser')
 
 module.exports = async (request, response, next) => {
     try {
-        const token = await request.headers.authorization.split(" ")[1]
+
+        const token = await request.cookies['TOKEN']
+
+        console.log(token)
 
         const decodedToken = await jwt.verify(token, process.env.SECRET_KEY)
 

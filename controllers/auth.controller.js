@@ -14,7 +14,22 @@ exports.register = async (request, response) => {
 exports.login = async (request, response) => {
     try {
         const result = await auth.login(request.body)
-        return response.status(200).send(result)
+        const expirationDate = new Date();
+        expirationDate.setHours(expirationDate.getHours() + 24);
+        return response.status(200).cookie('TOKEN', result.token, {
+            sameSite: 'strict',
+            path: '/',
+            expires: expirationDate,
+            httpOnly: true,
+            secure: true
+        }).send(result)
+        // response.status(202).cookie('idekkkkk', 'chaoddd', {
+        //     sameSite: 'strict',
+        //     path: '/',
+        //     expires: expirationDate,
+        //     //httpOnly: true
+        // })
+        // response.send('cookie being intialized')
     }
     catch (e) {
         console.log(e)
