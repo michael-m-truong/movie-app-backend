@@ -29,7 +29,7 @@ app.use((req, res, next) => {
 });
 
 var corsOptions = {
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'https://movie-app-mmt.onrender.com'],
   optionsSuccessStatus: 200, // some legacy browsers (IE11, various SmartTVs) choke on 204
   credentials: true
 }
@@ -62,7 +62,9 @@ app.get("/", (request, response) => {
   const expirationDate = new Date();
   expirationDate.setHours(expirationDate.getHours() + 24);
   response.status(202).cookie('nick', 'chao', {
-    sameSite: 'strict',
+    //sameSite: 'strict',
+    sameSite: 'none',
+    secure: true,     //for prod
     path: '/',
     expires: expirationDate,
     //httpOnly: true
