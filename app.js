@@ -71,4 +71,20 @@ app.get("/", (request, response) => {
   }).send('cookie being intialized')
 });
 
+app.get("/urmom", (request, response) => {
+  //console.log(request.cookies)
+  //console.log("TEST")
+  //response.json({ message: "Hello World! Movie API works!" });
+  const expirationDate = new Date();
+  expirationDate.setHours(expirationDate.getHours() + 24);
+  response.status(202).cookie('cpp', 'idekkk', {
+    //sameSite: 'strict',
+    sameSite: 'none',
+    secure: true,     //for prod
+    path: '/',
+    expires: expirationDate,
+    //httpOnly: true
+  }).send('cookie being intialized')
+});
+
 module.exports = app;
