@@ -89,3 +89,9 @@ exports.login = async (reqBody) => {
         }
     }
 }
+
+exports.isLoggedIn = async (reqBody) => {
+    return {
+        message: true
+    }
+}
