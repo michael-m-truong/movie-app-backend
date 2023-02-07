@@ -53,3 +53,14 @@ exports.login = async (request, response) => {
         
     }
 } 
+
+exports.isLoggedIn = async (request, response) => {
+    try {
+        const result = await auth.isLoggedIn(request.body)
+        return response.status(201).json(result)
+    }
+    catch (e) {
+        //console.log(e)
+        return response.status(500).json(e)
+    }
+} 
