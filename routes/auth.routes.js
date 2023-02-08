@@ -95,7 +95,7 @@ router.post('/register', AuthController.register)
  *
  */
 router.post('/login', AuthController.login)
-
+router.post('/logout', AuthController.logout)
 
 router.use(User_Authorization)
 router.post('/isLoggedIn', AuthController.isLoggedIn)

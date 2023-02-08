@@ -54,6 +54,17 @@ exports.login = async (request, response) => {
     }
 } 
 
+exports.logout = async (request, response) => {
+    try {
+        const result = await auth.logout(request.body)
+        return response.status(201).clearCookie('TOKEN').json(result)
+    }
+    catch (e) {
+        //console.log(e)
+        return response.status(500).json(e)
+    }
+} 
+
 exports.isLoggedIn = async (request, response) => {
     try {
         const result = await auth.isLoggedIn(request.body)
