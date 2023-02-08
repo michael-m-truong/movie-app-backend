@@ -90,6 +90,12 @@ exports.login = async (reqBody) => {
     }
 }
 
+exports.logout = async (reqBody) => {
+    return {
+        message: 'Logged out'
+    }
+}
+
 exports.isLoggedIn = async (reqBody) => {
     return {
         message: true
