@@ -17,9 +17,10 @@ exports.login = async (request, response) => {
         const expirationDate = new Date();
         expirationDate.setHours(expirationDate.getHours() + 24);
         return response.status(200).cookie('TOKEN', result.token, {
-            //sameSite: 'strict',
-            sameSite: 'none',
-            secure: true,     // for prod
+            sameSite: 'strict', //this works if you proxy request; in local dev or if you host server and client on same url just on diff ports
+            secure: false,
+            // sameSite: 'none',
+            // secure: true,     // for prod when you rewrite
             path: '/',
             expires: expirationDate,
             httpOnly: true,
@@ -66,6 +67,7 @@ exports.logout = async (request, response) => {
 } 
 
 exports.isLoggedIn = async (request, response) => {
+    console.log(request?.user)
     try {
         const result = await auth.isLoggedIn(request.body)
         return response.status(201).json(result)
