@@ -15,14 +15,15 @@ exports.register = async (reqBody) => {
             console.log(result)
             const user_obj = new User({
                 username: result._id, // Use the _id of the saved auth object as the username reference
-                watchlist: [], // Initialize with an empty watchlist
-                favorites: [], // Initialize with an empty favorites list
-                ratings: new Map(), // Initialize with an empty ratings list
+                //watchlist: [], // Initialize with an empty watchlist
+                //favorites: [], // Initialize with an empty favorites list
+                //ratings: new Map(), // Initialize with an empty ratings list
             });
             
             // Save the user object to the database
             const savedUser = await user_obj.save();
             console.log(savedUser)
+            console.log("wtf")
             return {
                 message: "User Created Successfully",
                 result,

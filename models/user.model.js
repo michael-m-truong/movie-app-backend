@@ -14,11 +14,14 @@ const UserSchema = new mongoose.Schema({
         of: MovieSchema,  //key movie, value ratingsschema
         default: new Map(),
     },
-    // ratings: [{
-    //     type: mongoose.Schema.Types.ObjectId,
-    //     ref: "Favorites",
-    //     unique: [true, "Already added to favorite"]   //we provide stats about ratings but not favorites
-    // }],
+    ratings: {
+        type: Map,
+        of: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Ratings'
+        },
+        default: new Map(),
+    },
     favorites: {
         type: Map,
         of: MovieSchema,  //key movie, value ratingsschema
