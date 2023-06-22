@@ -1,5 +1,6 @@
 const User = require('../models/user.model');
 const Auth = require('../models/auth.model');
+const Ratings = require('../models/ratings.model');
 const mongoose = require('mongoose');
 
 exports.read_all = async (reqBody) => {
@@ -9,7 +10,7 @@ exports.read_all = async (reqBody) => {
 exports.add_favorite = async (req) => {
     try {
         console.log(req.body)
-        const { movieId, genre, poster_path, title } = req.body; // Assuming you have the user ID and movie ID from the request body
+        const { movieId, genre, poster_path, title, backdrop_path, overview } = req.body; // Assuming you have the user ID and movie ID from the request body
         // console.log(typeof movieId);
         const userId = req.user.userId
         // console.log(req.user.userId)
@@ -126,7 +127,58 @@ exports.read_user_data = async (req) => {
         const userId = req.user.userId;
     
         // Find the user by ID
-        const user = await User.findOne({ username: userId })
+        //const user = await User.findOne({ username: userId }).populate('ratings')
+
+        const user = await User.aggregate([
+          { $match: { username: mongoose.Types.ObjectId(userId) } },
+          {
+            $lookup: {
+              from: 'ratings',
+              localField: 'username',
+              foreignField: 'userId',
+              as: 'ratings',
+            },
+          },
+          {
+            $addFields: {
+              ratings: {
+                $arrayToObject: {
+                  $map: {
+                    input: '$ratings',
+                    in: {
+                      k: { $toString: '$$this.movieId' }, // Use 'movieId' as the key
+                      v: '$$this', // Use the whole rating object as the value
+                    },
+                  },
+                },
+              },
+            },
+          },
+        ]);
+        
+        
+        /* Used to find doc memory size*/
+        // const userSizePipeline = [
+        //   {
+        //     $match: { username: mongoose.Types.ObjectId(userId) } // Filter for the desired user
+        //   },
+        //   {
+        //     $project: {
+        //       name: 1,
+        //       object_size: { $bsonSize: "$$ROOT" }
+        //     }
+        //   }
+        // ];
+        
+        // const result = await User.aggregate(userSizePipeline);
+        
+        // if (result.length > 0) {
+        //   const { name, object_size } = result[0];
+        //   console.log(`User: ${name}`);
+        //   console.log(`Size of user document: ${object_size} bytes`);
+        // } else {
+        //   console.log("User not found");
+        // }
     
         if (!user) {
             // Handle case where User document is not found
@@ -137,12 +189,14 @@ exports.read_user_data = async (req) => {
         }
     
         const favorites = user.favorites;
-        const ratings = user.ratings;
+        //const ratings = await Ratings.find({ userId: userId })
+        //user.ratngs = ratings
+        //console.log(user.ratings)
     
         return {
             success: true,
             message: "User data retrieved successfully",
-            user
+            user: user[0]
         };
     } catch (error) {
         // Handle any errors that occur during the process
@@ -152,10 +206,238 @@ exports.read_user_data = async (req) => {
             error: error.message,
         };
     }
-
-
 }
 
+exports.add_rating = async (req) => {
+  try {
+    const userId = req.user.userId;
+    const { movieId, ratingValue, genre, poster_path, title, backdrop_path, overview } = req.body;
+
+    // Create a new rating object
+    const newRating = new Ratings({
+      userId: userId,
+      movieId: movieId,
+      ratingValue: ratingValue,
+      title: title,
+      movieId: movieId,
+      genre: genre,
+      poster_path: poster_path,
+      backdrop_path: backdrop_path,
+      overview: overview
+    });
+
+    // Save the new rating object
+    const savedRating = await newRating.save();
+
+    // Find the user by ID
+    const user = await User.findOne({ username: userId })
+
+    user.ratings.set(movieId.toString(), savedRating._id)
+    await user.save()
+
+    return {
+      success: true,
+      message: "Rating added successfully",
+      rating: savedRating,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: "Error adding rating",
+      error: error.message,
+    };
+  }
+};
+
+exports.edit_rating = async (req) => {
+  try {
+    const userId = req.user.userId;
+    const { movieId, ratingValue } = req.body;
+
+    // Find the rating by its ID
+    const rating = await Ratings.findOne({userId: userId, movieId: movieId});
+
+    if (!rating) {
+      return {
+        success: false,
+        message: "Rating not found",
+      };
+    }
+
+    // Update the rating value
+    rating.ratingValue = ratingValue;
+
+    // Save the modified rating
+    const modifiedRating = await rating.save();
+
+    return {
+      success: true,
+      message: "Rating modified successfully",
+      rating: modifiedRating,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: "Error modifying rating",
+      error: error.message,
+    };
+  }
+};
+
+exports.remove_rating = async (req) => {
+  try {
+    const userId = req.user.userId;
+    const { movieId } = req.body;
+
+    // Find the rating by its ID and delete
+    const rating = await Ratings.findOneAndDelete({userId: userId, movieId: movieId});
+
+    if (!rating) {
+      return {
+        success: false,
+        message: "Rating not found",
+      };
+    }
+
+    // Delete the rating document
+    // await rating.delete();
+
+    // Remove the rating ObjectId from the user's ratings map
+    // Find the user by ID
+    const user = await User.findOne({ username: userId })
+    user.ratings.delete(movieId.toString())
+    await user.save()
+
+    return {
+      success: true,
+      message: "Rating deleted successfully",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: "Error deleting rating",
+      error: error.message,
+    };
+  }
+};
+
+exports.add_watchlist = async (req) => {
+  try {
+      console.log(req.body)
+      const { movieId, genre, poster_path, title, backdrop_path, overview } = req.body; // Assuming you have the user ID and movie ID from the request body
+      // console.log(typeof movieId);
+      const userId = req.user.userId
+      // console.log(req.user.userId)
+      // Find the user by ID
+      const user = await User.findOne({ username: userId });
+  const movieIdString = movieId.toString();
+
+      if (!user) {
+          // Handle case where User document is not found
+          console.log("baddd")
+          return {
+          success: false,
+          message: "User not found",
+          };
+      }
+
+      if (user.watchlist.has(movieIdString)) {
+        return {
+          success: false,
+          message: "Movie already favorited",
+          };
+      }
+
+      // Create a new favorite object
+      const newFavorite = {
+    title: title,
+    movieId: movieId,
+    genre: genre,
+    poster_path: poster_path,
+    backdrop_path: backdrop_path,
+    overview: overview
+  };
+
+      // Save the new favorite object
+      //const savedFavorite = await newFavorite.save();
+  
+      // Add the reference to the saved favorite object in the user's watchlist map
+      user.watchlist.set(movieIdString, newFavorite)
+  
+      // Save the updated user object
+      await user.save();
+
+      return {
+          success: true,
+          message: "Favorite added successfully",
+      };
+  } catch (error) {
+      // Handle any errors that occur during the process
+      return {
+          success: false,
+          message: "Error adding favorite",
+          error: error.message,
+      };
+  }
+}
+
+exports.remove_watchlist = async (req) => {
+  try {
+      const { movieId } = req.body;
+      const userId = req.user.userId;
+
+  const movieIdString = movieId.toString();
+
+  const user = await User.findOne({ username: userId });
+
+      if (user.watchlist.has(movieIdString)) {
+          user.watchlist.delete(movieIdString);
+          await user.save();
+      } else {
+          // Favorite does not exist
+    return {
+              success: false,
+              message: "Favorite not found",
+          };
+      }
+  
+      // const updateResult = await User.updateOne(
+      //     { username: userId },
+      //     { $pull: { favorites: { movieId: movieId } } }
+      // );
+  
+      // if (updateResult.nModified === 0) {
+      //     return {
+      //     success: false,
+      //     message: "Favorite not found",
+      //     };
+      // }
+
+      // const favorite = await Favorite.findOneAndRemove({ userId: userId, movieId: movieId });
+
+      // if (!favorite) {
+      //     return {
+      //       success: false,
+      //       message: "Favorite not found",
+      //     };
+      //   }
+  
+      return {
+          success: true,
+          message: "Favorite removed successfully",
+      };
+
+  } catch (error) {
+      return {
+          success: false,
+          message: "Error removing favorite",
+          error: error.message,
+      };
+  }
+}
+
+
+/*
 exports.read_user_data1 = async (req) => {
     try {
         const userId = req.user.userId;
@@ -444,3 +726,4 @@ exports.read_user_data2 = async (req) => {
         };
     }
 };
+*/
