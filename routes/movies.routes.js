@@ -13,5 +13,7 @@ router.post('/remove-favorite', MoviesController.Remove_Favorite)
 router.get('/read-all', MoviesController.Read_User_Data)
 router.post('/add-rating', MoviesController.Add_Rating)
 router.post('/edit-rating', MoviesController.Edit_Rating)
+router.post('/add-watchlist', MoviesController.Add_Watchlist)
+router.post('/remove-watchlist', MoviesController.Remove_Watchlist)
 
 module.exports = router;

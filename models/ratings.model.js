@@ -20,6 +20,26 @@ const RatingsSchema = new mongoose.Schema({
         type: Date,
         default: Date.now(),
     },
+    overview: {
+        type: String
+    },
+    backdrop_path: {
+        type: String
+    },
+    title: {
+        type: String
+    },
+    genre: {
+        type: [String]
+    },
+    poster_path: {
+        type: String
+    },
+    dateAdded: {
+        type: Date,
+        default: Date.now(),
+        index: true
+    },
 });
 
 RatingsSchema.index({ userId: 1, movieId: 1 }, { unique: true });

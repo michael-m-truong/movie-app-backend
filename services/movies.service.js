@@ -211,13 +211,19 @@ exports.read_user_data = async (req) => {
 exports.add_rating = async (req) => {
   try {
     const userId = req.user.userId;
-    const { movieId, ratingValue } = req.body;
+    const { movieId, ratingValue, genre, poster_path, title, backdrop_path, overview } = req.body;
 
     // Create a new rating object
     const newRating = new Ratings({
       userId: userId,
       movieId: movieId,
       ratingValue: ratingValue,
+      title: title,
+      movieId: movieId,
+      genre: genre,
+      poster_path: poster_path,
+      backdrop_path: backdrop_path,
+      overview: overview
     });
 
     // Save the new rating object
@@ -278,7 +284,7 @@ exports.edit_rating = async (req) => {
   }
 };
 
-exports.delete_rating = async (req) => {
+exports.remove_rating = async (req) => {
   try {
     const userId = req.user.userId;
     const ratingId = req.params.ratingId; // Assuming ratingId is passed as a URL parameter
@@ -311,6 +317,121 @@ exports.delete_rating = async (req) => {
     };
   }
 };
+
+exports.add_watchlist = async (req) => {
+  try {
+      console.log(req.body)
+      const { movieId, genre, poster_path, title, backdrop_path, overview } = req.body; // Assuming you have the user ID and movie ID from the request body
+      // console.log(typeof movieId);
+      const userId = req.user.userId
+      // console.log(req.user.userId)
+      // Find the user by ID
+      const user = await User.findOne({ username: userId });
+  const movieIdString = movieId.toString();
+
+      if (!user) {
+          // Handle case where User document is not found
+          console.log("baddd")
+          return {
+          success: false,
+          message: "User not found",
+          };
+      }
+
+      if (user.watchlist.has(movieIdString)) {
+        return {
+          success: false,
+          message: "Movie already favorited",
+          };
+      }
+
+      // Create a new favorite object
+      const newFavorite = {
+    title: title,
+    movieId: movieId,
+    genre: genre,
+    poster_path: poster_path,
+    backdrop_path: backdrop_path,
+    overview: overview
+  };
+
+      // Save the new favorite object
+      //const savedFavorite = await newFavorite.save();
+  
+      // Add the reference to the saved favorite object in the user's watchlist map
+      user.watchlist.set(movieIdString, newFavorite)
+  
+      // Save the updated user object
+      await user.save();
+
+      return {
+          success: true,
+          message: "Favorite added successfully",
+      };
+  } catch (error) {
+      // Handle any errors that occur during the process
+      return {
+          success: false,
+          message: "Error adding favorite",
+          error: error.message,
+      };
+  }
+}
+
+exports.remove_watchlist = async (req) => {
+  try {
+      const { movieId } = req.body;
+      const userId = req.user.userId;
+
+  const movieIdString = movieId.toString();
+
+  const user = await User.findOne({ username: userId });
+
+      if (user.watchlist.has(movieIdString)) {
+          user.watchlist.delete(movieIdString);
+          await user.save();
+      } else {
+          // Favorite does not exist
+    return {
+              success: false,
+              message: "Favorite not found",
+          };
+      }
+  
+      // const updateResult = await User.updateOne(
+      //     { username: userId },
+      //     { $pull: { favorites: { movieId: movieId } } }
+      // );
+  
+      // if (updateResult.nModified === 0) {
+      //     return {
+      //     success: false,
+      //     message: "Favorite not found",
+      //     };
+      // }
+
+      // const favorite = await Favorite.findOneAndRemove({ userId: userId, movieId: movieId });
+
+      // if (!favorite) {
+      //     return {
+      //       success: false,
+      //       message: "Favorite not found",
+      //     };
+      //   }
+  
+      return {
+          success: true,
+          message: "Favorite removed successfully",
+      };
+
+  } catch (error) {
+      return {
+          success: false,
+          message: "Error removing favorite",
+          error: error.message,
+      };
+  }
+}
 
 
 /*
