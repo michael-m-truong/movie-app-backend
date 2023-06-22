@@ -287,10 +287,10 @@ exports.edit_rating = async (req) => {
 exports.remove_rating = async (req) => {
   try {
     const userId = req.user.userId;
-    const ratingId = req.params.ratingId; // Assuming ratingId is passed as a URL parameter
+    const { movieId } = req.body;
 
-    // Find the rating by its ID
-    const rating = await Ratings.find({userId: userId, movieId: movieId});
+    // Find the rating by its ID and delete
+    const rating = await Ratings.findOneAndDelete({userId: userId, movieId: movieId});
 
     if (!rating) {
       return {
@@ -300,10 +300,13 @@ exports.remove_rating = async (req) => {
     }
 
     // Delete the rating document
-    await rating.delete();
+    // await rating.delete();
 
     // Remove the rating ObjectId from the user's ratings map
+    // Find the user by ID
+    const user = await User.findOne({ username: userId })
     user.ratings.delete(movieId.toString())
+    await user.save()
 
     return {
       success: true,
