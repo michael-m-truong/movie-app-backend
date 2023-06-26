@@ -10,7 +10,7 @@ exports.read_all = async (reqBody) => {
 exports.add_favorite = async (req) => {
     try {
         console.log(req.body)
-        const { movieId, genre, poster_path, title, backdrop_path, overview } = req.body; // Assuming you have the user ID and movie ID from the request body
+        const { movieId, genre, poster_path, title, backdrop_path, overview, vote_average } = req.body; // Assuming you have the user ID and movie ID from the request body
         // console.log(typeof movieId);
         const userId = req.user.userId
         // console.log(req.user.userId)
@@ -41,7 +41,8 @@ exports.add_favorite = async (req) => {
 			genre: genre,
 			poster_path: poster_path,
       backdrop_path: backdrop_path,
-      overview: overview
+      overview: overview,
+      vote_average: vote_average
 		};
   
         // Save the new favorite object
@@ -211,7 +212,7 @@ exports.read_user_data = async (req) => {
 exports.add_rating = async (req) => {
   try {
     const userId = req.user.userId;
-    const { movieId, ratingValue, genre, poster_path, title, backdrop_path, overview } = req.body;
+    const { movieId, ratingValue, genre, poster_path, title, backdrop_path, overview, vote_average } = req.body;
 
     // Create a new rating object
     const newRating = new Ratings({
@@ -223,7 +224,8 @@ exports.add_rating = async (req) => {
       genre: genre,
       poster_path: poster_path,
       backdrop_path: backdrop_path,
-      overview: overview
+      overview: overview,
+      vote_average: vote_average
     });
 
     // Save the new rating object
@@ -324,7 +326,7 @@ exports.remove_rating = async (req) => {
 exports.add_watchlist = async (req) => {
   try {
       console.log(req.body)
-      const { movieId, genre, poster_path, title, backdrop_path, overview } = req.body; // Assuming you have the user ID and movie ID from the request body
+      const { movieId, genre, poster_path, title, backdrop_path, overview, vote_average } = req.body; // Assuming you have the user ID and movie ID from the request body
       // console.log(typeof movieId);
       const userId = req.user.userId
       // console.log(req.user.userId)
@@ -355,7 +357,8 @@ exports.add_watchlist = async (req) => {
     genre: genre,
     poster_path: poster_path,
     backdrop_path: backdrop_path,
-    overview: overview
+    overview: overview,
+    vote_average: vote_average
   };
 
       // Save the new favorite object
