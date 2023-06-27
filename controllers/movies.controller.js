@@ -109,6 +109,14 @@ exports.Now_Playing= async (request, response) => {
     try {
         const result = await movies.now_playing(request)
         //const result = await movies.add_favorite_benchmark(request)
+
+        const now = new Date();
+        const tomorrow = new Date(now);
+        tomorrow.setDate(tomorrow.getDate() + 1); // Set the date to the next day
+        tomorrow.setHours(0, 0, 0, 0); // Set the time to midnight of the next day
+        const expirationTimestamp = Math.floor((tomorrow.getTime() - now.getTime()) / 1000);
+        
+        response.setHeader('Cache-Control', `public, max-age=${expirationTimestamp}`);
         return response.status(200).send(result)
     }
     catch (e) {
