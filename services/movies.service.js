@@ -455,7 +455,6 @@ exports.now_playing = async (req) => {
       let moreMovies = [];
       let page = 1;
       let total_pages = 10
-      console.log(process.env.TMDB_TOKEN)
       let requestUrl = "https://api.themoviedb.org/3/discover/movie"
       while (page - total_pages !== 1) {  
         const response = await axios.get(
@@ -491,9 +490,21 @@ exports.now_playing = async (req) => {
 
   const fetchDataFromTMDb = async (redis, redisKey) => {
     // Fetch data from the TMDB API (code for fetching data goes here)
+    console.log("huh")
     const tmdbData = await loadNowPlaying(); // Replace with your actual function to fetch now playing movies
     // Store the fetched data in Redis cache
-    await redis.set(redisKey, JSON.stringify(tmdbData));
+    
+    const now = new Date();
+
+    // Calculate the datetime for midnight of the next day
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1); // Set the date to the next day
+    tomorrow.setHours(0, 0, 0, 0); // Set the time to midnight of the next day
+
+    // Calculate the time difference between the current datetime and midnight of the next day in seconds
+    const expirationTimestamp = Math.floor((tomorrow.getTime() - now.getTime()) / 1000);
+
+    await redis.set(redisKey, JSON.stringify(tmdbData), 'EX', expirationTimestamp);
     console.log('Data stored in Redis cache.');
   }
   
