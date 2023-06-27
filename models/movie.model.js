@@ -22,6 +22,9 @@ const MovieSchema = new mongoose.Schema({
     poster_path: {
         type: String
     },
+    vote_average: {
+        type: Number
+    },
     dateAdded: {
         type: Date,
         default: Date.now(),
