@@ -13,7 +13,10 @@ function redisConnect() {
       });
 
       redisInstance.on('error', (error) => {
-        console.error('Error connecting to Redis server:', error);
+        //console.log('Error connecting to Redis server');
+        redisInstance.disconnect();
+        redisInstance = null
+        return 
       });
     }
   }
