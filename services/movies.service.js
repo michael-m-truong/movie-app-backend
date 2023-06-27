@@ -2,6 +2,8 @@ const User = require('../models/user.model');
 const Auth = require('../models/auth.model');
 const Ratings = require('../models/ratings.model');
 const mongoose = require('mongoose');
+const redisConnect = require('../db/redisConnect')
+const axios = require('axios')
 
 exports.read_all = async (reqBody) => {
     return { message: "My favorie movie is: Ford vs Ferrari"}
@@ -439,6 +441,82 @@ exports.remove_watchlist = async (req) => {
   }
 }
 
+exports.now_playing = async (req) => {
+
+  const loadNowPlaying = async () => {
+    try {
+      const currentDate = new Date();
+        const twoMonthsBefore = new Date();
+        twoMonthsBefore.setMonth(twoMonthsBefore.getMonth() - 3);
+    
+        const formattedCurrentDate = currentDate.toISOString().split("T")[0];
+        const formattedTwoMonthsBefore = twoMonthsBefore.toISOString().split("T")[0];
+
+      let moreMovies = [];
+      let page = 1;
+      let total_pages = 10
+      console.log(process.env.TMDB_TOKEN)
+      let requestUrl = "https://api.themoviedb.org/3/discover/movie"
+      while (page - total_pages !== 1) {  
+        const response = await axios.get(
+          requestUrl,
+          {
+            headers: {
+              Authorization: `Bearer ${process.env.TMDB_TOKEN}`, // Replace with your actual bearer token
+            },
+            params: {
+              "primary_release_date.gte": formattedTwoMonthsBefore,
+                "primary_release_date.lte": formattedCurrentDate,
+                sort_by: "vote_average.desc",
+                "vote_average.lte": 9.9,
+                "vote_count.gte": 5,
+              page: page
+            },
+          }
+        );
+    
+    
+        const filteredMovies = response.data.results.filter((movie) => movie.popularity >= 30);
+        moreMovies.push(...filteredMovies);
+        page++;
+      }
+      
+      return moreMovies;
+    }
+    catch (error){
+      //console.log(error)
+      throw error
+    }
+  };
+
+  const fetchDataFromTMDb = async (redis, redisKey) => {
+    // Fetch data from the TMDB API (code for fetching data goes here)
+    const tmdbData = await loadNowPlaying(); // Replace with your actual function to fetch now playing movies
+    // Store the fetched data in Redis cache
+    await redis.set(redisKey, JSON.stringify(tmdbData));
+    console.log('Data stored in Redis cache.');
+  }
+  
+  
+  try {
+    const redisKey = 'movies:nowplaying'
+    const redis = redisConnect()
+    // Check if data is available in Redis
+    //redis.del(redisKey)
+    const redisData = await redis.get(redisKey);
+    console.log(redisData)
+    if (redisData) {
+      return redisData
+    }
+
+    fetchDataFromTMDb(redis, redisKey)
+    return;
+
+  } catch (error) {
+    console.error('Error fetching now playing movies:', error);
+    throw error;
+  }
+}
 
 /*
 exports.read_user_data1 = async (req) => {

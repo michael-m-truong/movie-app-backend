@@ -10,9 +10,11 @@ const moviesRouter = require('./routes/movies.routes')
 const dbConnect = require("./db/dbConnect")
 const Auth = require('./models/auth.model');
 const cors = require('cors')
+const redisConnect = require("./db/redisConnect")
 //const Authorization = require('./middlewares/authorization.middleware')
 
 dbConnect()
+redisConnect()
 
 app.use((req, res, next) => {
   //res.setHeader("Access-Control-Allow-Origin", "http://127.0.0.1:5173");
