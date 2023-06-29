@@ -11,7 +11,7 @@ exports.read_all = async (reqBody) => {
 
 exports.add_favorite = async (req) => {
     try {
-        console.log(req.body)
+        //console.log(req.body)
         const { movieId, genre, poster_path, title, backdrop_path, overview, vote_average } = req.body; // Assuming you have the user ID and movie ID from the request body
         // console.log(typeof movieId);
         const userId = req.user.userId
@@ -56,6 +56,15 @@ exports.add_favorite = async (req) => {
         // Save the updated user object
         await user.save();
 
+
+        const updateRedis = async () => {
+          const redis = redisConnect()
+          const redisKey_favorite = 'stats:most:favorited'
+          let redisValue = await getMostFavorited()
+          await redis.set(redisKey_favorite, JSON.stringify(redisValue))
+        }
+        updateRedis()
+
         return {
             success: true,
             message: "Favorite added successfully",
@@ -82,6 +91,16 @@ exports.remove_favorite = async (req) => {
         if (user.favorites.has(movieIdString)) {
           	user.favorites.delete(movieIdString);
           	await user.save();
+            
+            const updateRedis = async () => {
+              const redis = redisConnect()
+              const redisKey_favorite = 'stats:most:favorited'
+              let redisValue = await getMostFavorited()
+              await redis.set(redisKey_favorite, JSON.stringify(redisValue))
+            }
+            updateRedis()
+
+
         } else {
           	// Favorite does not exist
 			return {
@@ -239,6 +258,14 @@ exports.add_rating = async (req) => {
     user.ratings.set(movieId.toString(), savedRating._id)
     await user.save()
 
+    const updateRedis = async () => {
+      const redis = redisConnect()
+      const redisKey_rating = 'stats:most:rated'
+      let redisValue = await getMostRated()
+      await redis.set(redisKey_rating, JSON.stringify(redisValue))
+    }
+    updateRedis()
+
     return {
       success: true,
       message: "Rating added successfully",
@@ -312,6 +339,14 @@ exports.remove_rating = async (req) => {
     user.ratings.delete(movieId.toString())
     await user.save()
 
+    const updateRedis = async () => {
+      const redis = redisConnect()
+      const redisKey_rating = 'stats:most:rated'
+      let redisValue = await getMostRated()
+      await redis.set(redisKey_rating, JSON.stringify(redisValue))
+    }
+    updateRedis()
+
     return {
       success: true,
       message: "Rating deleted successfully",
@@ -372,6 +407,14 @@ exports.add_watchlist = async (req) => {
       // Save the updated user object
       await user.save();
 
+      const updateRedis = async () => {
+        const redis = redisConnect()
+        const redisKey_watchlist = 'stats:most:watchlisted'
+        let redisValue = await getMostWatchlisted()
+        await redis.set(redisKey_watchlist, JSON.stringify(redisValue))
+      }
+      updateRedis()
+
       return {
           success: true,
           message: "Favorite added successfully",
@@ -398,11 +441,19 @@ exports.remove_watchlist = async (req) => {
       if (user.watchlist.has(movieIdString)) {
           user.watchlist.delete(movieIdString);
           await user.save();
+
+          const updateRedis = async () => {
+            const redis = redisConnect()
+            const redisKey_watchlist = 'stats:most:watchlisted'
+            let redisValue = await getMostWatchlisted()
+            await redis.set(redisKey_watchlist, JSON.stringify(redisValue))
+          }
+          updateRedis()
       } else {
           // Favorite does not exist
     return {
               success: false,
-              message: "Favorite not found",
+              message: "Watchlist movie not found",
           };
       }
   
@@ -429,13 +480,13 @@ exports.remove_watchlist = async (req) => {
   
       return {
           success: true,
-          message: "Favorite removed successfully",
+          message: "Watchlist movie removed successfully",
       };
 
   } catch (error) {
       return {
           success: false,
-          message: "Error removing favorite",
+          message: "Error removing watchlist movie",
           error: error.message,
       };
   }
@@ -515,7 +566,7 @@ exports.now_playing = async (req) => {
     // Check if data is available in Redis
     //redis.del(redisKey)
     const redisData = await redis.get(redisKey);
-    console.log(redisData)
+    //console.log(redisData)
     if (redisData) {
       return redisData
     }
@@ -537,6 +588,8 @@ exports.discover_stats = async (req) => {
     const redisKey_favorite = 'stats:most:favorited'
     const redisKey_watchlist = 'stats:most:watchlisted'
     const redis = redisConnect()
+
+    console.log(await getMostRated())
     
     const [redisData_rating, redisData_favorite, redisData_watchlist] = await Promise.all([
       redis.get(redisKey_rating),
@@ -547,6 +600,7 @@ exports.discover_stats = async (req) => {
     stats.mostFavoritedMovie = JSON.parse(redisData_favorite)
     stats.mostRatedMovie = JSON.parse(redisData_rating)
     stats.mostWatchlistedMovie = JSON.parse(redisData_watchlist)
+
     // redis.del(redisKey_watchlist)
     // redis.del(redisData_favorite)
     // redis.del(redisKey_rating)
@@ -599,31 +653,42 @@ const getAllStats = async () => {
 const getMostWatchlisted = async () => {
   try {
     // Most Watchlisted Movie
-    const mostWatchlistedMovie = await User.aggregate([
+    let mostWatchlistedMovie = await User.aggregate([
       {
         $project: {
-          watchlist: { $objectToArray: "$watchlist" },
+          watchlistMovies: { $objectToArray: "$watchlist" },
         },
       },
       {
-        $unwind: "$watchlist",
+        $unwind: "$watchlistMovies",
       },
       {
         $group: {
-          _id: "$watchlist.v",
+          _id: "$watchlistMovies.v.movieId",
+          movie: { $first: "$watchlistMovies.v" },
           watchlistCount: { $sum: 1 },
         },
       },
       {
+        $group: {
+          _id: "$watchlistMovies.v.movieId",
+          movies: { $push: { movie: "$movie", watchlistCount: "$watchlistCount" } },
+        },
+      },
+      {
+        $unwind: "$movies",
+      },
+      {
         $sort: {
-          watchlistCount: -1,
+          "movies.watchlistCount": -1,
+          "movies.movie.vote_average": -1,
         },
       },
       {
         $limit: 1,
       },
-    ])
-    stats.mostWatchlistedMovie = mostWatchlistedMovie[0];
+    ]);
+    mostWatchlistedMovie = mostWatchlistedMovie[0];
 
     return mostWatchlistedMovie
   }
@@ -640,7 +705,7 @@ const getMostWatchlisted = async () => {
 const getMostRated = async () => {
   try {
     // Most Rated Movies
-    const mostRatedMovies = await Ratings.aggregate([
+    let mostRatedMovie = await Ratings.aggregate([
       {
         $group: {
           _id: "$movieId",
@@ -651,13 +716,14 @@ const getMostRated = async () => {
       {
         $sort: {
           ratingCount: -1,
+          "movieDetails.vote_average": -1,
         },
       },
       {
         $limit: 1,
       },
     ])
-    stats.mostRatedMovie = mostRatedMovies[0];
+    mostRatedMovie = mostRatedMovie[0];
 
     return mostRatedMovie
   }
@@ -674,7 +740,7 @@ const getMostRated = async () => {
 const getMostFavorited = async () => {
   try {
     // Most Favorited Movie
-    const mostFavoritedMovie = await User.aggregate([
+    let mostFavoritedMovie = await User.aggregate([
       {
         $project: {
           favoriteMovies: { $objectToArray: "$favorites" },
@@ -685,21 +751,33 @@ const getMostFavorited = async () => {
       },
       {
         $group: {
-          _id: "$favoriteMovies.v",
+          _id: "$favoriteMovies.v.movieId",
+          movie: { $first: "$favoriteMovies.v" },
           favoriteCount: { $sum: 1 },
         },
       },
       {
+        $group: {
+          _id: "$favoriteMovies.v.movieId",
+          movies: { $push: { movie: "$movie", favoriteCount: "$favoriteCount" } },
+        },
+      },
+      {
+        $unwind: "$movies",
+      },
+      {
         $sort: {
-          favoriteCount: -1,
+          "movies.favoriteCount": -1,
+          "movies.movie.vote_average": -1,
         },
       },
       {
         $limit: 1,
       },
-    ])
+    ]);
+    //console.log(mostFavoritedMovie[0])
     mostFavoritedMovie = mostFavoritedMovie[0];
-
+    //console.log(mostFavoritedMovie)
     return mostFavoritedMovie
   }
   catch (error) {
