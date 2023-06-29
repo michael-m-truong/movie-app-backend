@@ -124,3 +124,15 @@ exports.Now_Playing= async (request, response) => {
         return response.status(500).send(e)
     }
 }
+
+exports.Discover_Stats = async (request, response) => {
+    try {
+        const result = await movies.discover_stats(request)
+        //const result = await movies.add_favorite_benchmark(request)
+        return response.status(200).send(result)
+    }
+    catch (e) {
+        //console.log(e)
+        return response.status(500).send(e)
+    }
+}

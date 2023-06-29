@@ -529,6 +529,189 @@ exports.now_playing = async (req) => {
   }
 }
 
+exports.discover_stats = async (req) => {
+  try {
+    //const stats =await getStats()
+    let stats = {}
+    const redisKey_rating = 'stats:most:rated'
+    const redisKey_favorite = 'stats:most:favorited'
+    const redisKey_watchlist = 'stats:most:watchlisted'
+    const redis = redisConnect()
+    
+    const [redisData_rating, redisData_favorite, redisData_watchlist] = await Promise.all([
+      redis.get(redisKey_rating),
+      redis.get(redisKey_favorite),
+      redis.get(redisKey_watchlist),
+    ]);
+
+    stats.mostFavoritedMovie = JSON.parse(redisData_favorite)
+    stats.mostRatedMovie = JSON.parse(redisData_rating)
+    stats.mostWatchlistedMovie = JSON.parse(redisData_watchlist)
+    // redis.del(redisKey_watchlist)
+    // redis.del(redisData_favorite)
+    // redis.del(redisKey_rating)
+
+    if (redisData_favorite && redisData_rating && redisData_watchlist) {
+      return {
+        success: true,
+        message: "Statistics retrieved successfully",
+        stats
+      }
+    }
+    else {
+      const stats =await getAllStats()
+      redis.set(redisKey_rating, JSON.stringify(stats.mostRatedMovie))
+      redis.set(redisKey_favorite, JSON.stringify(stats.mostFavoritedMovie))
+      redis.set(redisKey_watchlist, JSON.stringify(stats.mostWatchlistedMovie))
+      return {
+        success: true,
+        message: "Statistics retrieved successfully",
+        stats
+      }
+    }
+
+    
+  } catch (error) {
+    return {
+      success: false,
+      message: "Error retrieving statistics",
+      error: error.message,
+    };
+  }
+};
+
+const getAllStats = async () => {
+  const stats = {};
+
+  const [mostRated, mostFavorited, mostWatchlisted] = await Promise.all([
+    getMostRated(),
+    getMostFavorited(),
+    getMostWatchlisted(),
+  ]);
+
+  stats.mostFavoritedMovie = mostFavorited
+  stats.mostRatedMovie = mostRated
+  stats.mostWatchlistedMovie = mostWatchlisted
+
+  return stats
+}
+
+const getMostWatchlisted = async () => {
+  try {
+    // Most Watchlisted Movie
+    const mostWatchlistedMovie = await User.aggregate([
+      {
+        $project: {
+          watchlist: { $objectToArray: "$watchlist" },
+        },
+      },
+      {
+        $unwind: "$watchlist",
+      },
+      {
+        $group: {
+          _id: "$watchlist.v",
+          watchlistCount: { $sum: 1 },
+        },
+      },
+      {
+        $sort: {
+          watchlistCount: -1,
+        },
+      },
+      {
+        $limit: 1,
+      },
+    ])
+    stats.mostWatchlistedMovie = mostWatchlistedMovie[0];
+
+    return mostWatchlistedMovie
+  }
+  catch (error) {
+    return {
+      success: false,
+      message: "Error retrieving statistics",
+      error: error.message,
+    };
+  }
+}
+
+
+const getMostRated = async () => {
+  try {
+    // Most Rated Movies
+    const mostRatedMovies = await Ratings.aggregate([
+      {
+        $group: {
+          _id: "$movieId",
+          ratingCount: { $sum: 1 },
+          movieDetails: { $first: "$$ROOT" },
+        },
+      },
+      {
+        $sort: {
+          ratingCount: -1,
+        },
+      },
+      {
+        $limit: 1,
+      },
+    ])
+    stats.mostRatedMovie = mostRatedMovies[0];
+
+    return mostRatedMovie
+  }
+  catch (error) {
+    return {
+      success: false,
+      message: "Error retrieving statistics",
+      error: error.message,
+    };
+  }
+}
+
+
+const getMostFavorited = async () => {
+  try {
+    // Most Favorited Movie
+    const mostFavoritedMovie = await User.aggregate([
+      {
+        $project: {
+          favoriteMovies: { $objectToArray: "$favorites" },
+        },
+      },
+      {
+        $unwind: "$favoriteMovies",
+      },
+      {
+        $group: {
+          _id: "$favoriteMovies.v",
+          favoriteCount: { $sum: 1 },
+        },
+      },
+      {
+        $sort: {
+          favoriteCount: -1,
+        },
+      },
+      {
+        $limit: 1,
+      },
+    ])
+    mostFavoritedMovie = mostFavoritedMovie[0];
+
+    return mostFavoritedMovie
+  }
+  catch (error) {
+    return {
+      success: false,
+      message: "Error retrieving statistics",
+      error: error.message,
+    };
+  }
+}
+
+
 /*
 exports.read_user_data1 = async (req) => {
     try {

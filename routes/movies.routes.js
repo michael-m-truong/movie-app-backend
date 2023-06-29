@@ -5,6 +5,7 @@ const Authorization = require('../middlewares/authorization.middleware')
 
 ///{controller}/{action}
 router.get('/now-playing', MoviesController.Now_Playing)
+router.get('/discover-stats', MoviesController.Discover_Stats)
 
 router.use(Authorization)
 //router.get('/read-all', MoviesController.Read_All)
