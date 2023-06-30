@@ -109,8 +109,12 @@ exports.logout = async (reqBody) => {
     }
 }
 
-exports.isLoggedIn = async (reqBody) => {
+exports.isLoggedIn = async (req) => {
+
+    const username = req.user.username
+
     return {
-        message: true
+        message: true,
+        username: username 
     }
 }

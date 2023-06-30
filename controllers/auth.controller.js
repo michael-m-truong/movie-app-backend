@@ -69,7 +69,7 @@ exports.logout = async (request, response) => {
 exports.isLoggedIn = async (request, response) => {
     console.log(request?.user)
     try {
-        const result = await auth.isLoggedIn(request.body)
+        const result = await auth.isLoggedIn(request)
         return response.status(201).json(result)
     }
     catch (e) {

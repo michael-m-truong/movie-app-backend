@@ -4,6 +4,10 @@ const Ratings = require('../models/ratings.model');
 const mongoose = require('mongoose');
 const redisConnect = require('../db/redisConnect')
 const axios = require('axios')
+const dynamodbConnect = require("../db/dynamodbConnect");
+const { PutItemCommand, UpdateItemCommand, GetItemCommand } = require("@aws-sdk/client-dynamodb");
+const { Twilio } = require('twilio');
+
 
 exports.read_all = async (reqBody) => {
     return { message: "My favorie movie is: Ford vs Ferrari"}
@@ -363,7 +367,7 @@ exports.remove_rating = async (req) => {
 exports.add_watchlist = async (req) => {
   try {
       console.log(req.body)
-      const { movieId, genre, poster_path, title, backdrop_path, overview, vote_average } = req.body; // Assuming you have the user ID and movie ID from the request body
+      const { movieId, genre, poster_path, title, backdrop_path, overview, vote_average, release_date } = req.body; // Assuming you have the user ID and movie ID from the request body
       // console.log(typeof movieId);
       const userId = req.user.userId
       // console.log(req.user.userId)
@@ -395,7 +399,8 @@ exports.add_watchlist = async (req) => {
     poster_path: poster_path,
     backdrop_path: backdrop_path,
     overview: overview,
-    vote_average: vote_average
+    vote_average: vote_average,
+    release_date: release_date
   };
 
       // Save the new favorite object
@@ -788,6 +793,153 @@ const getMostFavorited = async () => {
     };
   }
 }
+
+exports.add_reminder = async (req) => {
+  const { phoneNumber, movieId } = req.body
+  const primaryKey = "movieId"; // Replace with your actual primary key attribute name
+
+  const client = dynamodbConnect()
+
+  try {
+    // Check if the item with the primary key exists
+    const getItemParams = {
+      TableName: "reminders", // Replace with your actual table name
+      Key: {
+        [primaryKey]: { N: movieId },
+      },
+    };
+
+    const getItemCommand = new GetItemCommand(getItemParams);
+    const getItemResult = await client.send(getItemCommand);
+
+    if (getItemResult.Item) {
+      // If the item exists, update the NS attribute by adding the value
+      const updateItemParams = {
+        TableName: "reminders", // Replace with your actual table name
+        Key: {
+          [primaryKey]: { N: movieId },
+        },
+        UpdateExpression: "ADD phoneNumbers :val",
+        ExpressionAttributeValues: {
+          ":val": { NS: [phoneNumber] }, // Replace 'attribute1' and 'Value2' with your actual attribute name and value
+        },
+      };
+
+      const updateItemCommand = new UpdateItemCommand(updateItemParams);
+      const updateItemResult = await client.send(updateItemCommand);
+
+      console.log("Item updated successfully:", updateItemResult);
+    } else {
+      // If the item doesn't exist, add a new item with the primary key and NS attribute
+      const putItemParams = {
+        TableName: "reminders", // Replace with your actual table name
+        Item: {
+          [primaryKey]: { N: movieId },
+          phoneNumbers: { NS: [phoneNumber] }, // Replace 'attribute1' and 'Value2' with your actual attribute name and value
+        },
+      };
+
+      const putItemCommand = new PutItemCommand(putItemParams);
+      const putItemResult = await client.send(putItemCommand);
+
+      console.log("Item added successfully:", putItemResult);
+    }
+  } catch (err) {
+    console.error("Error adding/updating item in DynamoDB:", err);
+  }
+}
+
+exports.remove_reminder = async (req) => {
+
+  const { phoneNumber, movieId } = req.body
+  const primaryKey = "movieId"; // Replace with your actual primary key attribute name
+
+  const client = dynamodbConnect()
+
+  try {
+    const updateItemParams = {
+      TableName: "reminders", // Replace with your actual table name
+      Key: {
+        [primaryKey]: { N: movieId },
+      },
+      UpdateExpression: "DELETE phoneNumbers :val",
+      ExpressionAttributeValues: {
+        ":val": { NS: [phoneNumber] },
+      },
+    };
+  
+    const updateItemCommand = new UpdateItemCommand(updateItemParams);
+    const updateItemResult = await client.send(updateItemCommand);
+  
+    console.log("Value deleted successfully:", updateItemResult);
+  } catch (err) {
+    console.error("Error deleting value from DynamoDB:", err);
+  }
+}
+
+const sendSMS_AddNumber = async (phoneNumber, movieName, releaseDate) => {
+  // Twilio credentials
+  const accountSid = process.env.TWILIO_ACCOUNTSID
+  const authToken = process.env.TWILIO_AUTHTOKEN
+
+  // Create a Twilio client
+  const client = new Twilio(accountSid, authToken);
+
+  // Convert Unix time to correct format
+  const date = new Date(releaseDate * 1000);
+  const formattedDate = date.toISOString().split('T')[0];
+
+  // Compose the SMS message
+  const message = `Created reminder for ${movieName}, which releases ${formattedDate}!`;
+
+  // Format phone number
+  const formattedPhoneNumber = '+' + phoneNumber;
+
+  try {
+    // Send the SMS
+    await client.messages.create({
+      from: process.env.TWILIO_FROM_NUMBER, // Replace with your Twilio phone number
+      to: formattedPhoneNumber, // The phone number to send the SMS to
+      body: message,
+    });
+
+    console.log('SMS sent successfully');
+  } catch (error) {
+    console.error('Error sending SMS:', error);
+  }
+};
+
+const sendSMS_RemoveNumber = async (phoneNumber, movieName, releaseDate) => {
+  // Twilio credentials
+  const accountSid = process.env.TWILIO_ACCOUNTSID
+  const authToken = process.env.TWILIO_AUTHTOKEN
+
+  // Create a Twilio client
+  const client = new Twilio(accountSid, authToken);
+
+  // Convert Unix time to correct format
+  const date = new Date(releaseDate * 1000);
+  const formattedDate = date.toISOString().split('T')[0];
+
+  // Compose the SMS message
+  const message = `Deleted reminder for ${movieName}`;
+
+  // Format phone number
+  const formattedPhoneNumber = '+' + phoneNumber;
+
+  try {
+    // Send the SMS
+    await client.messages.create({
+      from: process.env.TWILIO_FROM_NUMBER, // Replace with your Twilio phone number
+      to: formattedPhoneNumber, // The phone number to send the SMS to
+      body: message,
+    });
+
+    console.log('SMS sent successfully');
+  } catch (error) {
+    console.error('Error sending SMS:', error);
+  }
+};
 
 
 /*
