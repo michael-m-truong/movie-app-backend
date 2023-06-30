@@ -10,6 +10,10 @@ const AuthSchema = new mongoose.Schema({
         required: [true, "Please provide a password"],
         unique: false
     },
+    phoneNumber: {
+        type: String,
+        default: ""
+    }
 })
 
 //create user table or collection if there is no table w/ that name already

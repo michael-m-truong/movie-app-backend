@@ -795,10 +795,17 @@ const getMostFavorited = async () => {
 }
 
 exports.add_reminder = async (req) => {
-  const { phoneNumber, movieId } = req.body
+  const { phoneNumber, movieId, release_date, title } = req.body
   const primaryKey = "movieId"; // Replace with your actual primary key attribute name
 
   const client = dynamodbConnect()
+
+  // Get the current epoch Unix timestamp in milliseconds
+  const currentTimestamp = new Date(release_date).getTime();
+
+  // Convert the timestamp to seconds (remove milliseconds)
+  const currentEpoch = Math.floor(currentTimestamp / 1000);
+
 
   try {
     // Check if the item with the primary key exists
@@ -836,6 +843,9 @@ exports.add_reminder = async (req) => {
         Item: {
           [primaryKey]: { N: movieId },
           phoneNumbers: { NS: [phoneNumber] }, // Replace 'attribute1' and 'Value2' with your actual attribute name and value
+          releaseDate: { N: currentEpoch},
+          movieName: { S: title},
+
         },
       };
 
@@ -844,6 +854,13 @@ exports.add_reminder = async (req) => {
 
       console.log("Item added successfully:", putItemResult);
     }
+
+    //TODO:add to mongodb
+
+    sendSMS_AddNumber(phoneNumber, title, release_date)
+    return
+
+
   } catch (err) {
     console.error("Error adding/updating item in DynamoDB:", err);
   }
@@ -851,7 +868,7 @@ exports.add_reminder = async (req) => {
 
 exports.remove_reminder = async (req) => {
 
-  const { phoneNumber, movieId } = req.body
+  const { phoneNumber, movieId, title } = req.body
   const primaryKey = "movieId"; // Replace with your actual primary key attribute name
 
   const client = dynamodbConnect()
@@ -870,8 +887,14 @@ exports.remove_reminder = async (req) => {
   
     const updateItemCommand = new UpdateItemCommand(updateItemParams);
     const updateItemResult = await client.send(updateItemCommand);
-  
     console.log("Value deleted successfully:", updateItemResult);
+
+
+    //TODO:remove from mongodb
+
+    sendSMS_RemoveNumber(phoneNumber, title)
+    return
+
   } catch (err) {
     console.error("Error deleting value from DynamoDB:", err);
   }
@@ -886,11 +909,11 @@ const sendSMS_AddNumber = async (phoneNumber, movieName, releaseDate) => {
   const client = new Twilio(accountSid, authToken);
 
   // Convert Unix time to correct format
-  const date = new Date(releaseDate * 1000);
-  const formattedDate = date.toISOString().split('T')[0];
+  //const date = new Date(releaseDate * 1000);
+  //const formattedDate = date.toISOString().split('T')[0];
 
   // Compose the SMS message
-  const message = `Created reminder for ${movieName}, which releases ${formattedDate}!`;
+  const message = `Created reminder for ${movieName}, which releases ${releaseDate}!\nYou'll be notified when the movie comes out!`;
 
   // Format phone number
   const formattedPhoneNumber = '+' + phoneNumber;
@@ -909,7 +932,7 @@ const sendSMS_AddNumber = async (phoneNumber, movieName, releaseDate) => {
   }
 };
 
-const sendSMS_RemoveNumber = async (phoneNumber, movieName, releaseDate) => {
+const sendSMS_RemoveNumber = async (phoneNumber, movieName) => {
   // Twilio credentials
   const accountSid = process.env.TWILIO_ACCOUNTSID
   const authToken = process.env.TWILIO_AUTHTOKEN
@@ -918,8 +941,8 @@ const sendSMS_RemoveNumber = async (phoneNumber, movieName, releaseDate) => {
   const client = new Twilio(accountSid, authToken);
 
   // Convert Unix time to correct format
-  const date = new Date(releaseDate * 1000);
-  const formattedDate = date.toISOString().split('T')[0];
+  //const date = new Date(releaseDate * 1000);
+  //const formattedDate = date.toISOString().split('T')[0];
 
   // Compose the SMS message
   const message = `Deleted reminder for ${movieName}`;
