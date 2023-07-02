@@ -30,6 +30,9 @@ const MovieSchema = new mongoose.Schema({
         default: Date.now(),
         index: true
     },
+    release_date: {
+        type: String
+    }
     // reference to ratings
     // maybe you add personalized notes here
 });

@@ -100,4 +100,6 @@ router.post('/logout', AuthController.logout)
 router.use(User_Authorization)
 router.post('/isLoggedIn', AuthController.isLoggedIn)
 
+router.post('/update-number', AuthController.UpdateNumber)
+
 module.exports = router;

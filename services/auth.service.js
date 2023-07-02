@@ -67,7 +67,8 @@ exports.login = async (reqBody) => {
             const token = jwt.sign(
                 {
                     userId: user._id,
-                    username: user.username 
+                    username: user.username,
+                    phoneNumber: user.phoneNumber
                 },
                 process.env.SECRET_KEY,
                 { expiresIn: "24h" }
@@ -109,8 +110,53 @@ exports.logout = async (reqBody) => {
     }
 }
 
-exports.isLoggedIn = async (reqBody) => {
+exports.updatePhoneNumber= async (req) => {
+    try {
+        // Find the user by ID
+        const { updatedPhoneNumber } = req.body;
+
+        const userId = req.user.userId;
+        const username = req.user.username;
+        
+        const user = await Auth.findOne({ username: username });
+      
+
+        user.phoneNumber = updatedPhoneNumber;
+        // Save the updated user
+        await user.save();
+
+        const token = jwt.sign(
+            {
+                userId: userId,
+                username: username,
+                phoneNumber: updatedPhoneNumber
+            },
+            process.env.SECRET_KEY,
+            { expiresIn: "24h" }
+        )
+
+        return {
+            success: true,
+            token,
+            message: "Updated phone number",
+        };
+          
+      } catch (error) {
+        console.log(error)
+        throw {
+            error
+        }
+      }
+}
+
+exports.isLoggedIn = async (req) => {
+
+    const username = req.user.username
+    const phoneNumber = req.user?.phoneNumber
+
     return {
-        message: true
+        message: true,
+        username: username,
+        phoneNumber: phoneNumber
     }
 }

@@ -4,6 +4,11 @@ const Ratings = require('../models/ratings.model');
 const mongoose = require('mongoose');
 const redisConnect = require('../db/redisConnect')
 const axios = require('axios')
+const dynamodbConnect = require("../db/dynamodbConnect");
+const { PutItemCommand, UpdateItemCommand, GetItemCommand, DeleteItemCommand } = require("@aws-sdk/client-dynamodb");
+const { Twilio } = require('twilio');
+const Reminders = require('../models/reminder.model');
+
 
 exports.read_all = async (reqBody) => {
     return { message: "My favorie movie is: Ford vs Ferrari"}
@@ -11,7 +16,7 @@ exports.read_all = async (reqBody) => {
 
 exports.add_favorite = async (req) => {
     try {
-        console.log(req.body)
+        //console.log(req.body)
         const { movieId, genre, poster_path, title, backdrop_path, overview, vote_average } = req.body; // Assuming you have the user ID and movie ID from the request body
         // console.log(typeof movieId);
         const userId = req.user.userId
@@ -56,6 +61,15 @@ exports.add_favorite = async (req) => {
         // Save the updated user object
         await user.save();
 
+
+        const updateRedis = async () => {
+          const redis = redisConnect()
+          const redisKey_favorite = 'stats:most:favorited'
+          let redisValue = await getMostFavorited()
+          await redis.set(redisKey_favorite, JSON.stringify(redisValue))
+        }
+        updateRedis()
+
         return {
             success: true,
             message: "Favorite added successfully",
@@ -82,6 +96,16 @@ exports.remove_favorite = async (req) => {
         if (user.favorites.has(movieIdString)) {
           	user.favorites.delete(movieIdString);
           	await user.save();
+            
+            const updateRedis = async () => {
+              const redis = redisConnect()
+              const redisKey_favorite = 'stats:most:favorited'
+              let redisValue = await getMostFavorited()
+              await redis.set(redisKey_favorite, JSON.stringify(redisValue))
+            }
+            updateRedis()
+
+
         } else {
           	// Favorite does not exist
 			return {
@@ -157,7 +181,19 @@ exports.read_user_data = async (req) => {
               },
             },
           },
+          {
+            $lookup: {
+              from: 'reminders',
+              localField: 'username',
+              foreignField: 'userId',
+              as: 'reminders',
+            },
+          },
         ]);
+        
+        // Access the reminders field in the user object
+        console.log(user[0].reminders);
+        
         
         
         /* Used to find doc memory size*/
@@ -239,6 +275,14 @@ exports.add_rating = async (req) => {
     user.ratings.set(movieId.toString(), savedRating._id)
     await user.save()
 
+    const updateRedis = async () => {
+      const redis = redisConnect()
+      const redisKey_rating = 'stats:most:rated'
+      let redisValue = await getMostRated()
+      await redis.set(redisKey_rating, JSON.stringify(redisValue))
+    }
+    updateRedis()
+
     return {
       success: true,
       message: "Rating added successfully",
@@ -312,6 +356,14 @@ exports.remove_rating = async (req) => {
     user.ratings.delete(movieId.toString())
     await user.save()
 
+    const updateRedis = async () => {
+      const redis = redisConnect()
+      const redisKey_rating = 'stats:most:rated'
+      let redisValue = await getMostRated()
+      await redis.set(redisKey_rating, JSON.stringify(redisValue))
+    }
+    updateRedis()
+
     return {
       success: true,
       message: "Rating deleted successfully",
@@ -328,7 +380,7 @@ exports.remove_rating = async (req) => {
 exports.add_watchlist = async (req) => {
   try {
       console.log(req.body)
-      const { movieId, genre, poster_path, title, backdrop_path, overview, vote_average } = req.body; // Assuming you have the user ID and movie ID from the request body
+      const { movieId, genre, poster_path, title, backdrop_path, overview, vote_average, release_date } = req.body; // Assuming you have the user ID and movie ID from the request body
       // console.log(typeof movieId);
       const userId = req.user.userId
       // console.log(req.user.userId)
@@ -360,7 +412,8 @@ exports.add_watchlist = async (req) => {
     poster_path: poster_path,
     backdrop_path: backdrop_path,
     overview: overview,
-    vote_average: vote_average
+    vote_average: vote_average,
+    release_date: release_date
   };
 
       // Save the new favorite object
@@ -372,12 +425,21 @@ exports.add_watchlist = async (req) => {
       // Save the updated user object
       await user.save();
 
+      const updateRedis = async () => {
+        const redis = redisConnect()
+        const redisKey_watchlist = 'stats:most:watchlisted'
+        let redisValue = await getMostWatchlisted()
+        await redis.set(redisKey_watchlist, JSON.stringify(redisValue))
+      }
+      updateRedis()
+
       return {
           success: true,
           message: "Favorite added successfully",
       };
   } catch (error) {
       // Handle any errors that occur during the process
+      console.log(error)
       return {
           success: false,
           message: "Error adding favorite",
@@ -398,11 +460,19 @@ exports.remove_watchlist = async (req) => {
       if (user.watchlist.has(movieIdString)) {
           user.watchlist.delete(movieIdString);
           await user.save();
+
+          const updateRedis = async () => {
+            const redis = redisConnect()
+            const redisKey_watchlist = 'stats:most:watchlisted'
+            let redisValue = await getMostWatchlisted()
+            await redis.set(redisKey_watchlist, JSON.stringify(redisValue))
+          }
+          updateRedis()
       } else {
           // Favorite does not exist
     return {
               success: false,
-              message: "Favorite not found",
+              message: "Watchlist movie not found",
           };
       }
   
@@ -429,13 +499,13 @@ exports.remove_watchlist = async (req) => {
   
       return {
           success: true,
-          message: "Favorite removed successfully",
+          message: "Watchlist movie removed successfully",
       };
 
   } catch (error) {
       return {
           success: false,
-          message: "Error removing favorite",
+          message: "Error removing watchlist movie",
           error: error.message,
       };
   }
@@ -515,7 +585,7 @@ exports.now_playing = async (req) => {
     // Check if data is available in Redis
     //redis.del(redisKey)
     const redisData = await redis.get(redisKey);
-    console.log(redisData)
+    //console.log(redisData)
     if (redisData) {
       return redisData
     }
@@ -528,6 +598,513 @@ exports.now_playing = async (req) => {
     throw error;
   }
 }
+
+exports.discover_stats = async (req) => {
+  try {
+    //const stats =await getStats()
+    let stats = {}
+    const redisKey_rating = 'stats:most:rated'
+    const redisKey_favorite = 'stats:most:favorited'
+    const redisKey_watchlist = 'stats:most:watchlisted'
+    const redis = redisConnect()
+
+    console.log(await getMostRated())
+    
+    const [redisData_rating, redisData_favorite, redisData_watchlist] = await Promise.all([
+      redis.get(redisKey_rating),
+      redis.get(redisKey_favorite),
+      redis.get(redisKey_watchlist),
+    ]);
+
+    stats.mostFavoritedMovie = JSON.parse(redisData_favorite)
+    stats.mostRatedMovie = JSON.parse(redisData_rating)
+    stats.mostWatchlistedMovie = JSON.parse(redisData_watchlist)
+
+    // redis.del(redisKey_watchlist)
+    // redis.del(redisData_favorite)
+    // redis.del(redisKey_rating)
+
+    if (redisData_favorite && redisData_rating && redisData_watchlist) {
+      return {
+        success: true,
+        message: "Statistics retrieved successfully",
+        stats
+      }
+    }
+    else {
+      const stats =await getAllStats()
+      redis.set(redisKey_rating, JSON.stringify(stats.mostRatedMovie))
+      redis.set(redisKey_favorite, JSON.stringify(stats.mostFavoritedMovie))
+      redis.set(redisKey_watchlist, JSON.stringify(stats.mostWatchlistedMovie))
+      return {
+        success: true,
+        message: "Statistics retrieved successfully",
+        stats
+      }
+    }
+
+    
+  } catch (error) {
+    return {
+      success: false,
+      message: "Error retrieving statistics",
+      error: error.message,
+    };
+  }
+};
+
+const getAllStats = async () => {
+  const stats = {};
+
+  const [mostRated, mostFavorited, mostWatchlisted] = await Promise.all([
+    getMostRated(),
+    getMostFavorited(),
+    getMostWatchlisted(),
+  ]);
+
+  stats.mostFavoritedMovie = mostFavorited
+  stats.mostRatedMovie = mostRated
+  stats.mostWatchlistedMovie = mostWatchlisted
+
+  return stats
+}
+
+const getMostWatchlisted = async () => {
+  try {
+    // Most Watchlisted Movie
+    let mostWatchlistedMovie = await User.aggregate([
+      {
+        $project: {
+          watchlistMovies: { $objectToArray: "$watchlist" },
+        },
+      },
+      {
+        $unwind: "$watchlistMovies",
+      },
+      {
+        $group: {
+          _id: "$watchlistMovies.v.movieId",
+          movie: { $first: "$watchlistMovies.v" },
+          watchlistCount: { $sum: 1 },
+        },
+      },
+      {
+        $group: {
+          _id: "$watchlistMovies.v.movieId",
+          movies: { $push: { movie: "$movie", watchlistCount: "$watchlistCount" } },
+        },
+      },
+      {
+        $unwind: "$movies",
+      },
+      {
+        $sort: {
+          "movies.watchlistCount": -1,
+          "movies.movie.vote_average": -1,
+        },
+      },
+      {
+        $limit: 1,
+      },
+    ]);
+    mostWatchlistedMovie = mostWatchlistedMovie[0];
+
+    return mostWatchlistedMovie
+  }
+  catch (error) {
+    return {
+      success: false,
+      message: "Error retrieving statistics",
+      error: error.message,
+    };
+  }
+}
+
+
+const getMostRated = async () => {
+  try {
+    // Most Rated Movies
+    let mostRatedMovie = await Ratings.aggregate([
+      {
+        $group: {
+          _id: "$movieId",
+          ratingCount: { $sum: 1 },
+          movieDetails: { $first: "$$ROOT" },
+        },
+      },
+      {
+        $sort: {
+          ratingCount: -1,
+          "movieDetails.vote_average": -1,
+        },
+      },
+      {
+        $limit: 1,
+      },
+    ])
+    mostRatedMovie = mostRatedMovie[0];
+
+    return mostRatedMovie
+  }
+  catch (error) {
+    return {
+      success: false,
+      message: "Error retrieving statistics",
+      error: error.message,
+    };
+  }
+}
+
+
+const getMostFavorited = async () => {
+  try {
+    // Most Favorited Movie
+    let mostFavoritedMovie = await User.aggregate([
+      {
+        $project: {
+          favoriteMovies: { $objectToArray: "$favorites" },
+        },
+      },
+      {
+        $unwind: "$favoriteMovies",
+      },
+      {
+        $group: {
+          _id: "$favoriteMovies.v.movieId",
+          movie: { $first: "$favoriteMovies.v" },
+          favoriteCount: { $sum: 1 },
+        },
+      },
+      {
+        $group: {
+          _id: "$favoriteMovies.v.movieId",
+          movies: { $push: { movie: "$movie", favoriteCount: "$favoriteCount" } },
+        },
+      },
+      {
+        $unwind: "$movies",
+      },
+      {
+        $sort: {
+          "movies.favoriteCount": -1,
+          "movies.movie.vote_average": -1,
+        },
+      },
+      {
+        $limit: 1,
+      },
+    ]);
+    //console.log(mostFavoritedMovie[0])
+    mostFavoritedMovie = mostFavoritedMovie[0];
+    //console.log(mostFavoritedMovie)
+    return mostFavoritedMovie
+  }
+  catch (error) {
+    return {
+      success: false,
+      message: "Error retrieving statistics",
+      error: error.message,
+    };
+  }
+}
+
+exports.add_reminder = async (req) => {
+  const { phoneNumber, movieId, release_date, title } = req.body
+  const primaryKey = "movieId"; // Replace with your actual primary key attribute name
+
+  const client = dynamodbConnect()
+
+  // Get the current epoch Unix timestamp in milliseconds
+  const currentTimestamp = new Date(release_date).getTime();
+
+  // Convert the timestamp to seconds (remove milliseconds)
+  const currentEpoch = Math.floor(currentTimestamp / 1000);
+
+  const movieIdString = movieId.toString();
+
+
+  try {
+    // Check if the item with the primary key exists
+    const getItemParams = {
+      TableName: "reminders", // Replace with your actual table name
+      Key: {
+        [primaryKey]: { N: movieIdString },
+      },
+    };
+
+    const getItemCommand = new GetItemCommand(getItemParams);
+    const getItemResult = await client.send(getItemCommand);
+
+    if (getItemResult.Item) {
+      // If the item exists, update the NS attribute by adding the value
+      const updateItemParams = {
+        TableName: "reminders", // Replace with your actual table name
+        Key: {
+          [primaryKey]: { N: movieIdString },
+        },
+        UpdateExpression: "ADD phoneNumbers :val",
+        ExpressionAttributeValues: {
+          ":val": { NS: [phoneNumber] }, // Replace 'attribute1' and 'Value2' with your actual attribute name and value
+        },
+      };
+
+      const updateItemCommand = new UpdateItemCommand(updateItemParams);
+      const updateItemResult = await client.send(updateItemCommand);
+
+      console.log("Item updated successfully:", updateItemResult);
+    } else {
+      // If the item doesn't exist, add a new item with the primary key and NS attribute
+      const putItemParams = {
+        TableName: "reminders", // Replace with your actual table name
+        Item: {
+          [primaryKey]: { N: movieIdString },
+          phoneNumbers: { NS: [phoneNumber] }, // Replace 'attribute1' and 'Value2' with your actual attribute name and value
+          releaseDate: { N: String(currentEpoch)},
+          movieName: { S: title},
+
+        },
+      };
+
+      const putItemCommand = new PutItemCommand(putItemParams);
+      const putItemResult = await client.send(putItemCommand);
+
+      console.log("Item added successfully:", putItemResult);
+    }
+
+    //TODO:add to mongodb
+    await mongo_add_reminder(req)
+    sendSMS_AddNumber(phoneNumber, title, release_date)
+    return
+
+
+  } catch (err) {
+    console.error("Error adding/updating item in DynamoDB:", err);
+  }
+}
+
+async function mongo_add_reminder(req) {
+
+    try {
+        //console.log(req.body)
+        const { movieId, genre, poster_path, title, backdrop_path, overview, vote_average, release_date } = req.body; // Assuming you have the user ID and movie ID from the request body
+        // console.log(typeof movieId);
+        const userId = req.user.userId
+        // console.log(req.user.userId)
+        // Find the user by ID
+        const user = await User.findOne({ username: userId });
+		const movieIdString = movieId.toString();
+
+        if (!user) {
+            // Handle case where User document is not found
+            console.log("baddd")
+            return {
+            success: false,
+            message: "User not found",
+            };
+        }
+
+        const diffMilliseconds = new Date(release_date) - Date.now();
+      const ttlMilliseconds = Math.max(diffMilliseconds, 0); // Ensure TTL is at least 0
+
+        // Create a new favorite object
+        // Create a new rating object
+    const newReminder = new Reminders({
+      userId: userId,
+      movieId: movieId,
+      title: title,
+      movieId: movieId,
+      genre: genre,
+      poster_path: poster_path,
+      backdrop_path: backdrop_path,
+      overview: overview,
+      vote_average: vote_average,
+      release_date: release_date,
+      expireAt: new Date(Date.now() + ttlMilliseconds)
+    });
+  
+    const savedReminder = await newReminder.save();
+
+        /*const updateRedis = async () => {
+          const redis = redisConnect()
+          const redisKey_favorite = 'stats:most:favorited'
+          let redisValue = await getMostFavorited()
+          await redis.set(redisKey_favorite, JSON.stringify(redisValue))
+        }
+        updateRedis() */
+
+        return {
+            success: true,
+            message: "Reminder added successfully",
+        };
+    } catch (error) {
+        // Handle any errors that occur during the process
+        console.log(error)
+        return {
+            success: false,
+            message: "Error adding reminder",
+            error: error.message,
+        };
+    }
+}
+
+exports.remove_reminder = async (req) => {
+  const { movieId, title } = req.body;
+  const phoneNumber = req.user.phoneNumber
+  const primaryKey = "movieId"; // Replace with your actual primary key attribute name
+
+  const client = dynamodbConnect();
+
+  const movieIdString = movieId.toString();
+
+  try {
+    const getItemParams = {
+      TableName: "reminders", // Replace with your actual table name
+      Key: {
+        [primaryKey]: { N: movieIdString },
+      },
+    };
+
+    const getItemCommand = new GetItemCommand(getItemParams);
+    const getItemResult = await client.send(getItemCommand);
+
+    //const phoneNumbers = getItemResult.Item.phoneNumbers ? getItemResult.Item.phoneNumbers.values : [];
+    if (getItemResult.Item.phoneNumbers.NS.length === 1) {
+      // Delete the whole document
+      const deleteItemParams = {
+        TableName: "reminders", // Replace with your actual table name
+        Key: {
+          [primaryKey]: { N: movieIdString },
+        },
+      };
+
+      const deleteItemCommand = new DeleteItemCommand(deleteItemParams);
+      await client.send(deleteItemCommand);
+    } else {
+      // Delete the phone number from the set
+      const updateItemParams = {
+        TableName: "reminders", // Replace with your actual table name
+        Key: {
+          [primaryKey]: { N: movieIdString },
+        },
+        UpdateExpression: "DELETE phoneNumbers :val",
+        ExpressionAttributeValues: {
+          ":val": { NS: [phoneNumber] },
+        },
+      };
+
+      const updateItemCommand = new UpdateItemCommand(updateItemParams);
+      await client.send(updateItemCommand);
+    }
+
+    // TODO: remove from MongoDB
+    await mongo_remove_reminder(req);
+
+    sendSMS_RemoveNumber(phoneNumber, title);
+    return;
+  } catch (err) {
+    console.log(err.message);
+    // console.error("Error deleting value from DynamoDB:", err);
+  }
+};
+
+
+const sendSMS_AddNumber = async (phoneNumber, movieName, releaseDate) => {
+  // Twilio credentials
+  const accountSid = process.env.TWILIO_ACCOUNTSID
+  const authToken = process.env.TWILIO_AUTHTOKEN
+
+  // Create a Twilio client
+  const client = new Twilio(accountSid, authToken);
+
+  // Convert Unix time to correct format
+  //const date = new Date(releaseDate * 1000);
+  //const formattedDate = date.toISOString().split('T')[0];
+
+  // Compose the SMS message
+  const message = `Created reminder for ${movieName}, which releases ${releaseDate}!\n\nYou'll be notified when the movie comes out!`;
+
+  // Format phone number
+  const formattedPhoneNumber = '+' + phoneNumber;
+
+  try {
+    // Send the SMS
+    await client.messages.create({
+      from: process.env.TWILIO_FROM_NUMBER, // Replace with your Twilio phone number
+      to: phoneNumber, // The phone number to send the SMS to
+      body: message,
+    });
+
+    console.log('SMS sent successfully');
+  } catch (error) {
+    console.error('Error sending SMS:', error);
+  }
+};
+
+async function mongo_remove_reminder(req) {
+
+  try {
+    const userId = req.user.userId;
+    const { movieId } = req.body;
+
+    // Find the rating by its ID and delete
+    const rating = await Reminders.findOneAndDelete({userId: userId, movieId: movieId});
+        
+        /*const updateRedis = async () => {
+          const redis = redisConnect()
+          const redisKey_favorite = 'stats:most:favorited'
+          let redisValue = await getMostFavorited()
+          await redis.set(redisKey_favorite, JSON.stringify(redisValue))
+        }
+        updateRedis() */
+
+      return {
+          success: true,
+          message: "Reminder removed successfully",
+      };
+
+  } catch (error) {
+    console.log(error)
+      return {
+          success: false,
+          message: "Error removing reminder",
+          error: error.message,
+      };
+  }
+}
+
+const sendSMS_RemoveNumber = async (phoneNumber, movieName) => {
+  // Twilio credentials
+  const accountSid = process.env.TWILIO_ACCOUNTSID
+  const authToken = process.env.TWILIO_AUTHTOKEN
+
+  // Create a Twilio client
+  const client = new Twilio(accountSid, authToken);
+
+  // Convert Unix time to correct format
+  //const date = new Date(releaseDate * 1000);
+  //const formattedDate = date.toISOString().split('T')[0];
+
+  // Compose the SMS message
+  const message = `Deleted reminder for ${movieName}`;
+
+  // Format phone number
+  const formattedPhoneNumber = '+' + phoneNumber;
+  console.log(phoneNumber)
+
+  try {
+    // Send the SMS
+    await client.messages.create({
+      from: process.env.TWILIO_FROM_NUMBER, // Replace with your Twilio phone number
+      to: formattedPhoneNumber, // The phone number to send the SMS to
+      body: message,
+    });
+
+    console.log('SMS sent successfully');
+  } catch (error) {
+    console.error('Error sending SMS:', error);
+  }
+};
+
 
 /*
 exports.read_user_data1 = async (req) => {

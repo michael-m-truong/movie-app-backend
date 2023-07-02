@@ -5,6 +5,7 @@ const Authorization = require('../middlewares/authorization.middleware')
 
 ///{controller}/{action}
 router.get('/now-playing', MoviesController.Now_Playing)
+router.get('/discover-stats', MoviesController.Discover_Stats)
 
 router.use(Authorization)
 //router.get('/read-all', MoviesController.Read_All)
@@ -17,6 +18,8 @@ router.post('/edit-rating', MoviesController.Edit_Rating)
 router.post('/remove-rating', MoviesController.Remove_Rating)
 router.post('/add-watchlist', MoviesController.Add_Watchlist)
 router.post('/remove-watchlist', MoviesController.Remove_Watchlist)
+router.post('/add-reminder', MoviesController.Add_Reminder)
+router.post('/remove-reminder', MoviesController.Remove_Reminder)
 
 
 module.exports = router;

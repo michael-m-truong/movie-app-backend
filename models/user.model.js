@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
-const MovieSchema = require("./movie.model")
+const MovieSchema = require("./movie.model");
+const ReminderSchema = require("./reminder.model");
 // const WatchlistSchema = require("./watchlist.model")
 
 const UserSchema = new mongoose.Schema({
@@ -27,6 +28,14 @@ const UserSchema = new mongoose.Schema({
         of: MovieSchema,  //key movie, value ratingsschema
         default: new Map(),
     },
+    // reminders: {
+    //     type: Map,
+    //     of: {
+    //       type: mongoose.Schema.Types.ObjectId,
+    //       ref: 'Reminders'
+    //     },
+    //     default: new Map(),
+    // },
 });
 
 module.exports = mongoose.model.User || mongoose.model("User", UserSchema);
