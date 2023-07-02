@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 const redisConnect = require('../db/redisConnect')
 const axios = require('axios')
 const dynamodbConnect = require("../db/dynamodbConnect");
-const { PutItemCommand, UpdateItemCommand, GetItemCommand } = require("@aws-sdk/client-dynamodb");
+const { PutItemCommand, UpdateItemCommand, GetItemCommand, DeleteItemCommand } = require("@aws-sdk/client-dynamodb");
 const { Twilio } = require('twilio');
 
 
@@ -806,13 +806,15 @@ exports.add_reminder = async (req) => {
   // Convert the timestamp to seconds (remove milliseconds)
   const currentEpoch = Math.floor(currentTimestamp / 1000);
 
+  const movieIdString = movieId.toString();
+
 
   try {
     // Check if the item with the primary key exists
     const getItemParams = {
       TableName: "reminders", // Replace with your actual table name
       Key: {
-        [primaryKey]: { N: movieId },
+        [primaryKey]: { N: movieIdString },
       },
     };
 
@@ -824,7 +826,7 @@ exports.add_reminder = async (req) => {
       const updateItemParams = {
         TableName: "reminders", // Replace with your actual table name
         Key: {
-          [primaryKey]: { N: movieId },
+          [primaryKey]: { N: movieIdString },
         },
         UpdateExpression: "ADD phoneNumbers :val",
         ExpressionAttributeValues: {
@@ -841,9 +843,9 @@ exports.add_reminder = async (req) => {
       const putItemParams = {
         TableName: "reminders", // Replace with your actual table name
         Item: {
-          [primaryKey]: { N: movieId },
+          [primaryKey]: { N: movieIdString },
           phoneNumbers: { NS: [phoneNumber] }, // Replace 'attribute1' and 'Value2' with your actual attribute name and value
-          releaseDate: { N: currentEpoch},
+          releaseDate: { N: String(currentEpoch)},
           movieName: { S: title},
 
         },
@@ -856,8 +858,8 @@ exports.add_reminder = async (req) => {
     }
 
     //TODO:add to mongodb
-
-    sendSMS_AddNumber(phoneNumber, title, release_date)
+    await mongo_add_reminder(req)
+    //sendSMS_AddNumber(phoneNumber, title, release_date)
     return
 
 
@@ -866,39 +868,139 @@ exports.add_reminder = async (req) => {
   }
 }
 
-exports.remove_reminder = async (req) => {
+async function mongo_add_reminder(req) {
 
-  const { phoneNumber, movieId, title } = req.body
+    try {
+        //console.log(req.body)
+        const { movieId, genre, poster_path, title, backdrop_path, overview, vote_average, release_date } = req.body; // Assuming you have the user ID and movie ID from the request body
+        // console.log(typeof movieId);
+        const userId = req.user.userId
+        // console.log(req.user.userId)
+        // Find the user by ID
+        const user = await User.findOne({ username: userId });
+		const movieIdString = movieId.toString();
+
+        if (!user) {
+            // Handle case where User document is not found
+            console.log("baddd")
+            return {
+            success: false,
+            message: "User not found",
+            };
+        }
+
+        if (user.reminders.has(movieIdString)) {
+          return {
+            success: false,
+            message: "Movie already reminded",
+            };
+        }
+
+        // Create a new favorite object
+        const newReminder = {
+      title: title,
+			movieId: movieId,
+			genre: genre,
+			poster_path: poster_path,
+      backdrop_path: backdrop_path,
+      overview: overview,
+      vote_average: vote_average,
+      release_date: release_date
+		};
+  
+        // Save the new favorite object
+        //const savedFavorite = await newFavorite.save();
+    
+        // Add the reference to the saved favorite object in the user's favorites array
+        user.reminders.set(movieIdString, newReminder)
+    
+        // Save the updated user object
+        await user.save();
+
+
+        /*const updateRedis = async () => {
+          const redis = redisConnect()
+          const redisKey_favorite = 'stats:most:favorited'
+          let redisValue = await getMostFavorited()
+          await redis.set(redisKey_favorite, JSON.stringify(redisValue))
+        }
+        updateRedis() */
+
+        return {
+            success: true,
+            message: "Reminder added successfully",
+        };
+    } catch (error) {
+        // Handle any errors that occur during the process
+        console.log(error)
+        return {
+            success: false,
+            message: "Error adding reminder",
+            error: error.message,
+        };
+    }
+}
+
+exports.remove_reminder = async (req) => {
+  const { movieId, title } = req.body;
+  const phoneNumber = req.user.phoneNumber
   const primaryKey = "movieId"; // Replace with your actual primary key attribute name
 
-  const client = dynamodbConnect()
+  const client = dynamodbConnect();
+
+  const movieIdString = movieId.toString();
 
   try {
-    const updateItemParams = {
+    const getItemParams = {
       TableName: "reminders", // Replace with your actual table name
       Key: {
-        [primaryKey]: { N: movieId },
-      },
-      UpdateExpression: "DELETE phoneNumbers :val",
-      ExpressionAttributeValues: {
-        ":val": { NS: [phoneNumber] },
+        [primaryKey]: { N: movieIdString },
       },
     };
-  
-    const updateItemCommand = new UpdateItemCommand(updateItemParams);
-    const updateItemResult = await client.send(updateItemCommand);
-    console.log("Value deleted successfully:", updateItemResult);
 
+    const getItemCommand = new GetItemCommand(getItemParams);
+    const getItemResult = await client.send(getItemCommand);
 
-    //TODO:remove from mongodb
+    //const phoneNumbers = getItemResult.Item.phoneNumbers ? getItemResult.Item.phoneNumbers.values : [];
+    if (getItemResult.Item.phoneNumbers.NS.length === 1) {
+      // Delete the whole document
+      const deleteItemParams = {
+        TableName: "reminders", // Replace with your actual table name
+        Key: {
+          [primaryKey]: { N: movieIdString },
+        },
+      };
 
-    sendSMS_RemoveNumber(phoneNumber, title)
-    return
+      const deleteItemCommand = new DeleteItemCommand(deleteItemParams);
+      await client.send(deleteItemCommand);
+    } else {
+      // Delete the phone number from the set
+      const updateItemParams = {
+        TableName: "reminders", // Replace with your actual table name
+        Key: {
+          [primaryKey]: { N: movieIdString },
+        },
+        UpdateExpression: "DELETE phoneNumbers :val",
+        ExpressionAttributeValues: {
+          ":val": { NS: [phoneNumber] },
+        },
+      };
 
+      const updateItemCommand = new UpdateItemCommand(updateItemParams);
+      await client.send(updateItemCommand);
+    }
+
+    // TODO: remove from MongoDB
+    await mongo_remove_reminder(req);
+
+    sendSMS_RemoveNumber(phoneNumber, title);
+    return;
   } catch (err) {
-    console.error("Error deleting value from DynamoDB:", err);
+    console.log(err.message);
+    // console.error("Error deleting value from DynamoDB:", err);
   }
-}
+};
+
 
 const sendSMS_AddNumber = async (phoneNumber, movieName, releaseDate) => {
   // Twilio credentials
@@ -913,7 +1015,7 @@ const sendSMS_AddNumber = async (phoneNumber, movieName, releaseDate) => {
   //const formattedDate = date.toISOString().split('T')[0];
 
   // Compose the SMS message
-  const message = `Created reminder for ${movieName}, which releases ${releaseDate}!\nYou'll be notified when the movie comes out!`;
+  const message = `Created reminder for ${movieName}, which releases ${releaseDate}!\n\nYou'll be notified when the movie comes out!`;
 
   // Format phone number
   const formattedPhoneNumber = '+' + phoneNumber;
@@ -922,7 +1024,7 @@ const sendSMS_AddNumber = async (phoneNumber, movieName, releaseDate) => {
     // Send the SMS
     await client.messages.create({
       from: process.env.TWILIO_FROM_NUMBER, // Replace with your Twilio phone number
-      to: formattedPhoneNumber, // The phone number to send the SMS to
+      to: phoneNumber, // The phone number to send the SMS to
       body: message,
     });
 
@@ -931,6 +1033,52 @@ const sendSMS_AddNumber = async (phoneNumber, movieName, releaseDate) => {
     console.error('Error sending SMS:', error);
   }
 };
+
+async function mongo_remove_reminder(req) {
+
+  try {
+    const { movieId } = req.body;
+    const userId = req.user.userId;
+
+const movieIdString = movieId.toString();
+
+const user = await User.findOne({ username: userId });
+
+    if (user.reminders.has(movieIdString)) {
+        user.reminders.delete(movieIdString);
+        await user.save();
+        
+        /*const updateRedis = async () => {
+          const redis = redisConnect()
+          const redisKey_favorite = 'stats:most:favorited'
+          let redisValue = await getMostFavorited()
+          await redis.set(redisKey_favorite, JSON.stringify(redisValue))
+        }
+        updateRedis() */
+
+
+    } else {
+        // Favorite does not exist
+    return {
+              success: false,
+              message: "Favorite not found",
+          };
+      }
+
+      return {
+          success: true,
+          message: "Reminder removed successfully",
+      };
+
+  } catch (error) {
+    console.log(error)
+      return {
+          success: false,
+          message: "Error removing reminder",
+          error: error.message,
+      };
+  }
+}
 
 const sendSMS_RemoveNumber = async (phoneNumber, movieName) => {
   // Twilio credentials
@@ -949,6 +1097,7 @@ const sendSMS_RemoveNumber = async (phoneNumber, movieName) => {
 
   // Format phone number
   const formattedPhoneNumber = '+' + phoneNumber;
+  console.log(phoneNumber)
 
   try {
     // Send the SMS

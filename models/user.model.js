@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
-const MovieSchema = require("./movie.model")
+const MovieSchema = require("./movie.model");
+const ReminderSchema = require("./reminder.model");
 // const WatchlistSchema = require("./watchlist.model")
 
 const UserSchema = new mongoose.Schema({
@@ -25,6 +26,11 @@ const UserSchema = new mongoose.Schema({
     favorites: {
         type: Map,
         of: MovieSchema,  //key movie, value ratingsschema
+        default: new Map(),
+    },
+    reminders: {
+        type: Map,
+        of: ReminderSchema,  //key movie, value ratingsschema
         default: new Map(),
     },
 });
