@@ -28,11 +28,14 @@ const UserSchema = new mongoose.Schema({
         of: MovieSchema,  //key movie, value ratingsschema
         default: new Map(),
     },
-    reminders: {
-        type: Map,
-        of: ReminderSchema,  //key movie, value ratingsschema
-        default: new Map(),
-    },
+    // reminders: {
+    //     type: Map,
+    //     of: {
+    //       type: mongoose.Schema.Types.ObjectId,
+    //       ref: 'Reminders'
+    //     },
+    //     default: new Map(),
+    // },
 });
 
 module.exports = mongoose.model.User || mongoose.model("User", UserSchema);

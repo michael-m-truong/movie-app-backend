@@ -7,6 +7,7 @@ const axios = require('axios')
 const dynamodbConnect = require("../db/dynamodbConnect");
 const { PutItemCommand, UpdateItemCommand, GetItemCommand, DeleteItemCommand } = require("@aws-sdk/client-dynamodb");
 const { Twilio } = require('twilio');
+const Reminders = require('../models/reminder.model');
 
 
 exports.read_all = async (reqBody) => {
@@ -180,7 +181,19 @@ exports.read_user_data = async (req) => {
               },
             },
           },
+          {
+            $lookup: {
+              from: 'reminders',
+              localField: 'username',
+              foreignField: 'userId',
+              as: 'reminders',
+            },
+          },
         ]);
+        
+        // Access the reminders field in the user object
+        console.log(user[0].reminders);
+        
         
         
         /* Used to find doc memory size*/
@@ -426,6 +439,7 @@ exports.add_watchlist = async (req) => {
       };
   } catch (error) {
       // Handle any errors that occur during the process
+      console.log(error)
       return {
           success: false,
           message: "Error adding favorite",
@@ -859,7 +873,7 @@ exports.add_reminder = async (req) => {
 
     //TODO:add to mongodb
     await mongo_add_reminder(req)
-    //sendSMS_AddNumber(phoneNumber, title, release_date)
+    sendSMS_AddNumber(phoneNumber, title, release_date)
     return
 
 
@@ -889,34 +903,26 @@ async function mongo_add_reminder(req) {
             };
         }
 
-        if (user.reminders.has(movieIdString)) {
-          return {
-            success: false,
-            message: "Movie already reminded",
-            };
-        }
+        const diffMilliseconds = new Date(release_date) - Date.now();
+      const ttlMilliseconds = Math.max(diffMilliseconds, 0); // Ensure TTL is at least 0
 
         // Create a new favorite object
-        const newReminder = {
+        // Create a new rating object
+    const newReminder = new Reminders({
+      userId: userId,
+      movieId: movieId,
       title: title,
-			movieId: movieId,
-			genre: genre,
-			poster_path: poster_path,
+      movieId: movieId,
+      genre: genre,
+      poster_path: poster_path,
       backdrop_path: backdrop_path,
       overview: overview,
       vote_average: vote_average,
-      release_date: release_date
-		};
+      release_date: release_date,
+      expireAt: new Date(Date.now() + ttlMilliseconds)
+    });
   
-        // Save the new favorite object
-        //const savedFavorite = await newFavorite.save();
-    
-        // Add the reference to the saved favorite object in the user's favorites array
-        user.reminders.set(movieIdString, newReminder)
-    
-        // Save the updated user object
-        await user.save();
-
+    const savedReminder = await newReminder.save();
 
         /*const updateRedis = async () => {
           const redis = redisConnect()
@@ -1037,16 +1043,11 @@ const sendSMS_AddNumber = async (phoneNumber, movieName, releaseDate) => {
 async function mongo_remove_reminder(req) {
 
   try {
-    const { movieId } = req.body;
     const userId = req.user.userId;
+    const { movieId } = req.body;
 
-const movieIdString = movieId.toString();
-
-const user = await User.findOne({ username: userId });
-
-    if (user.reminders.has(movieIdString)) {
-        user.reminders.delete(movieIdString);
-        await user.save();
+    // Find the rating by its ID and delete
+    const rating = await Reminders.findOneAndDelete({userId: userId, movieId: movieId});
         
         /*const updateRedis = async () => {
           const redis = redisConnect()
@@ -1055,15 +1056,6 @@ const user = await User.findOne({ username: userId });
           await redis.set(redisKey_favorite, JSON.stringify(redisValue))
         }
         updateRedis() */
-
-
-    } else {
-        // Favorite does not exist
-    return {
-              success: false,
-              message: "Favorite not found",
-          };
-      }
 
       return {
           success: true,

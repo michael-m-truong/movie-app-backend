@@ -1,11 +1,11 @@
 const mongoose = require("mongoose");
 
-const ReminderSchema = new mongoose.Schema({
-  // userId: {
-  //     type: mongoose.Schema.Types.ObjectId,
-  //     ref: "User",
-  //     required: true,
-  // },
+const RemindersSchema = new mongoose.Schema({
+  userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+  },
   movieId: Number,
   overview: {
     type: String,
@@ -35,16 +35,19 @@ const ReminderSchema = new mongoose.Schema({
   },
   expireAt: {
     type: Date,
-    default: function () {
-      // Calculate the TTL based on the difference between dateAdded and release_date
-      const diffMilliseconds = new Date(this.release_date) - this.dateAdded;
-      const ttlMilliseconds = Math.max(diffMilliseconds, 0); // Ensure TTL is at least 0
-      return new Date(Date.now() + ttlMilliseconds);
-    },
-    index: { expires: 0 }, // Set the index to expire documents after the specified date
+    // default: function () {
+    //   // Calculate the TTL based on the difference between dateAdded and release_date
+    //   const diffMilliseconds = new Date(this.release_date) - this.dateAdded;
+    //   const ttlMilliseconds = Math.max(diffMilliseconds, 0); // Ensure TTL is at least 0
+    //   return new Date(Date.now() + ttlMilliseconds);
+    // },
+    //index: { expiresAt: 0 }, // Set the index to expire documents after the specified date
   },
   // reference to ratings
   // maybe you add personalized notes here
 });
 
-module.exports = ReminderSchema;
+RemindersSchema.index({expireAt: 1}, {expireAfterSeconds: 0});
+RemindersSchema.index({ userId: 1, movieId: 1 }, { unique: true });
+
+module.exports = mongoose.model.Reminders || mongoose.model("Reminders", RemindersSchema);
