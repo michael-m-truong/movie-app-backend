@@ -6,7 +6,7 @@ let redisInstance = null;
 function redisConnect() {
   try {
     if (!redisInstance) {
-      redisInstance = new Redis(process.env.REDIS_EXTERNAL);
+      redisInstance = new Redis(process.env.REDIS_INTERNAL);
 
       redisInstance.on('connect', () => {
         console.log('Successfully connected to Redis server!');
