@@ -43,6 +43,9 @@ const RatingsSchema = new mongoose.Schema({
         default: Date.now(),
         index: true
     },
+    release_date: {
+        type: String
+    }
 });
 
 RatingsSchema.index({ userId: 1, movieId: 1 }, { unique: true });
