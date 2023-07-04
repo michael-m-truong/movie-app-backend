@@ -610,7 +610,7 @@ exports.discover_stats = async (req) => {
     const redisKey_watchlist = 'stats:most:watchlisted'
     const redis = redisConnect()
 
-    console.log(await getMostRated())
+    //console.log(await getMostRated())
     
     const [redisData_rating, redisData_favorite, redisData_watchlist] = await Promise.all([
       redis.get(redisKey_rating),
@@ -898,7 +898,7 @@ async function mongo_add_reminder(req) {
 
         if (!user) {
             // Handle case where User document is not found
-            console.log("baddd")
+            //console.log("baddd")
             return {
             success: false,
             message: "User not found",
