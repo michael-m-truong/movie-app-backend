@@ -17,7 +17,7 @@ exports.read_all = async (reqBody) => {
 exports.add_favorite = async (req) => {
     try {
         //console.log(req.body)
-        const { movieId, genre, poster_path, title, backdrop_path, overview, vote_average } = req.body; // Assuming you have the user ID and movie ID from the request body
+        const { movieId, genre, poster_path, title, backdrop_path, overview, vote_average, release_date } = req.body; // Assuming you have the user ID and movie ID from the request body
         // console.log(typeof movieId);
         const userId = req.user.userId
         // console.log(req.user.userId)
@@ -49,7 +49,8 @@ exports.add_favorite = async (req) => {
 			poster_path: poster_path,
       backdrop_path: backdrop_path,
       overview: overview,
-      vote_average: vote_average
+      vote_average: vote_average,
+      release_date: release_date
 		};
   
         // Save the new favorite object
@@ -250,7 +251,7 @@ exports.read_user_data = async (req) => {
 exports.add_rating = async (req) => {
   try {
     const userId = req.user.userId;
-    const { movieId, ratingValue, genre, poster_path, title, backdrop_path, overview, vote_average } = req.body;
+    const { movieId, ratingValue, genre, poster_path, title, backdrop_path, overview, vote_average, release_date } = req.body;
 
     // Create a new rating object
     const newRating = new Ratings({
@@ -263,7 +264,8 @@ exports.add_rating = async (req) => {
       poster_path: poster_path,
       backdrop_path: backdrop_path,
       overview: overview,
-      vote_average: vote_average
+      vote_average: vote_average, 
+      release_date: release_date
     });
 
     // Save the new rating object
@@ -818,7 +820,7 @@ exports.add_reminder = async (req) => {
   const currentTimestamp = new Date(release_date).getTime();
 
   // Convert the timestamp to seconds (remove milliseconds)
-  const currentEpoch = Math.floor(currentTimestamp / 1000);
+  const currentEpoch = Math.floor(currentTimestamp / 1000) +36000;
 
   const movieIdString = movieId.toString();
 
