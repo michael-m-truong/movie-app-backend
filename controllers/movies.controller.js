@@ -1,4 +1,5 @@
 const movies = require('../services/movies.service')
+const statEmitter = require('../events/stat.events')
 
 exports.Read_All = async (request, response) => {
     try {
@@ -135,6 +136,28 @@ exports.Discover_Stats = async (request, response) => {
         //console.log(e)
         return response.status(500).send(e)
     }
+}
+
+exports.Discover_Stats_Updates = async (req, res) => {
+    // Set appropriate SSE headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    // res.setHeader('Access-Control-Allow-Origin', '*');
+    res.flushHeaders();
+
+    const response = res;
+
+    statEmitter.on('stats_updated', () => {
+        response.write(`event: stats_updated\n`);
+        response.write(`data: stats_updated\n\n`);
+    });
+
+    // Handle client disconnection
+    // req.on('close', () => {
+    //     // Unsubscribe from favorite update events
+    //     statEmitter.off('closed');
+    // });
 }
 
 exports.Add_Reminder = async (request, response) => {

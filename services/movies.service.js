@@ -8,6 +8,7 @@ const dynamodbConnect = require("../db/dynamodbConnect");
 const { PutItemCommand, UpdateItemCommand, GetItemCommand, DeleteItemCommand } = require("@aws-sdk/client-dynamodb");
 const { Twilio } = require('twilio');
 const Reminders = require('../models/reminder.model');
+const statEmitter = require('../events/stat.events')
 
 
 exports.read_all = async (reqBody) => {
@@ -68,8 +69,10 @@ exports.add_favorite = async (req) => {
           const redisKey_favorite = 'stats:most:favorited'
           let redisValue = await getMostFavorited()
           await redis.set(redisKey_favorite, JSON.stringify(redisValue))
+          statEmitter.emit('stats_updated')
         }
         updateRedis()
+        
 
         return {
             success: true,
@@ -103,6 +106,7 @@ exports.remove_favorite = async (req) => {
               const redisKey_favorite = 'stats:most:favorited'
               let redisValue = await getMostFavorited()
               await redis.set(redisKey_favorite, JSON.stringify(redisValue))
+              statEmitter.emit('stats_updated')
             }
             updateRedis()
 
@@ -282,8 +286,10 @@ exports.add_rating = async (req) => {
       const redisKey_rating = 'stats:most:rated'
       let redisValue = await getMostRated()
       await redis.set(redisKey_rating, JSON.stringify(redisValue))
+      statEmitter.emit('stats_updated')
     }
     updateRedis()
+
 
     return {
       success: true,
@@ -363,8 +369,10 @@ exports.remove_rating = async (req) => {
       const redisKey_rating = 'stats:most:rated'
       let redisValue = await getMostRated()
       await redis.set(redisKey_rating, JSON.stringify(redisValue))
+      statEmitter.emit('stats_updated')
     }
     updateRedis()
+
 
     return {
       success: true,
@@ -432,8 +440,10 @@ exports.add_watchlist = async (req) => {
         const redisKey_watchlist = 'stats:most:watchlisted'
         let redisValue = await getMostWatchlisted()
         await redis.set(redisKey_watchlist, JSON.stringify(redisValue))
+        statEmitter.emit('stats_updated')
       }
       updateRedis()
+
 
       return {
           success: true,
@@ -468,8 +478,12 @@ exports.remove_watchlist = async (req) => {
             const redisKey_watchlist = 'stats:most:watchlisted'
             let redisValue = await getMostWatchlisted()
             await redis.set(redisKey_watchlist, JSON.stringify(redisValue))
+            statEmitter.emit('stats_updated')
           }
+
           updateRedis()
+
+          
       } else {
           // Favorite does not exist
     return {
