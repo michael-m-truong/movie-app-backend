@@ -143,7 +143,7 @@ exports.Discover_Stats_Updates = async (req, res) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
-    // res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Origin', '*');
     res.flushHeaders();
 
     const response = res;
@@ -154,10 +154,11 @@ exports.Discover_Stats_Updates = async (req, res) => {
     });
 
     // Handle client disconnection
-    // req.on('close', () => {
-    //     // Unsubscribe from favorite update events
-    //     statEmitter.off('closed');
-    // });
+    req.on('close', () => {
+        console.log("closed")
+        // Unsubscribe from favorite update events
+        //statEmitter.off('closed');
+    });
 }
 
 exports.Add_Reminder = async (request, response) => {
